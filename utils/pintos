@@ -579,7 +579,7 @@ EOF
 	    my $mode = defined ($squish_pty) ? "term" : "file";
 	    print BOCHSRC "com1: enabled=1, mode=$mode, dev=/dev/stdout\n";
 	}
-	print BOCHSRC "display_library: nogui\n" if $vga eq 'none';
+	print BOCHSRC "display_library: sdl\n" if $vga eq 'none';
     } else {
 	print BOCHSRC "display_library: term\n";
     }
@@ -620,7 +620,7 @@ sub run_qemu {
       if $vga eq 'terminal';
     print "warning: qemu doesn't support jitter\n"
       if defined $jitter;
-    my (@cmd) = ('qemu');
+    my (@cmd) = ('qemu-system-i386');
     push (@cmd, '-hda', $disks[0]) if defined $disks[0];
     push (@cmd, '-hdb', $disks[1]) if defined $disks[1];
     push (@cmd, '-hdc', $disks[2]) if defined $disks[2];

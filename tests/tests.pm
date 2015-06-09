@@ -72,7 +72,7 @@ sub check_for_panic {
 	  if grep (hex ($_) < 0xc0000000, split (' ', $addrs)) > 0 && -e $test;
 
 	# Get and print the backtrace.
-	my ($trace) = scalar (`backtrace kernel.o $userprog $addrs`);
+	my ($trace) = scalar (`../../utils/backtrace kernel.o $userprog $addrs`);
 	print "Call stack:$addrs\n";
 	print "Translation of call stack:\n";
 	print $trace;
