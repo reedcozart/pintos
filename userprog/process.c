@@ -37,7 +37,7 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -88,6 +88,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  while(1){} //just to debug, will remove 
   return -1;
 }
 
@@ -195,7 +196,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, char* cmd_line);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -302,7 +303,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
@@ -426,18 +427,71 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
+// PUT THE PARSING AND STACK SETUP HERE
+//MODIFY SIGNATURE TO PASS "file_name" into setup_stack
+/*
+Create a temp stack pointer, then start pushing things on 
+*/
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, const char* file_name) 
 {
   uint8_t *kpage;
   bool success = false;
+  char* temp_ptr;
+  char* tok_str;
+  char* saveptr;
+  int argc = 0;
+  char** argv;
+  int position = 0;
+  char* token;
+  uint8_t word_align = 0;
+
+  char** top;
+  char** bottom;
+  char* temp;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      if (success){
         *esp = PHYS_BASE;
+        /* setup temporary pointer*/
+        temp_ptr = PHYS_BASE;
+        /* set temp_ptr to the spot*/
+        temp_ptr = temp_ptr - strlen(file_name) -1 ;//Not sure if we need the -1
+        strcpy(temp_ptr, file_name); //copy into memory
+
+        token = strtok_r(temp_ptr, " ", &saveptr); //do first tokenization
+
+        temp_ptr--; // go down one, push word_align
+        *temp_ptr = word_align;
+        
+        temp_ptr = temp_ptr - 4;
+        top = temp_ptr;
+        while(token != NULL){
+          *temp_ptr = token;
+          token = strtok_r(NULL, " ", &saveptr);
+          temp_ptr = temp_ptr - 4;
+          argc++;
+        } 
+        *temp_ptr = (char*)NULL;
+        temp_ptr = temp_ptr - 4;
+        bottom = temp_ptr;
+        /*reverse the pointers for the argv[0], argv[1], etc*/
+        while(bottom < top){
+          temp = *bottom;
+          *bottom = *top;
+          *top = temp;
+          bottom = bottom + 4;
+          top = top - 4;        
+        }
+        temp_ptr-= 4;
+        *temp_ptr = argc;
+        temp_ptr -= 4;
+        *temp_ptr = void(*) ();
+
+      }
       else
         palloc_free_page (kpage);
     }
