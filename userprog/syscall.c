@@ -57,11 +57,61 @@ int filesize(int fd){
 }
 
 int read(int fd, void* buffer, unsigned size){
+	int result = -1;
+	int offset;
+	
+	// Error check the buffer pointer
+	if(buffer + size - 1 >= PHYS_BASE || get_user(buffer + size - 1) == -1 ) {
+		exit(-1);
+		return -1;
+	}
 
+	// If reading from stdin
+	if(fd == STDIN_FILENO) {
+		uint8_t* local_buffer = (uint8_t*) buffer;
+		for(offset = 0; offset < size; offset++) {
+			local_buffer[offset] = input_getc();
+		}
+		return size;
+	}
+
+	// If reading from a file
+	lock_acquire(&file_sys_lock);
+	struct file_desc* file_d = get_fd(fd);
+	if(file_d && file_d->file) {
+		result = file_read(file_d->file, buffer, size);
+	}
+	return result;
 }
 
 int write(int fd, const void* buffer, unsigned size){
+	int result = -1;
 
+	// Error check the buffer pointer
+	if(buffer + size - 1 >= PHYS_BASE || get_user(buffer + size - 1) == -1 ) {
+		exit(-1);
+		return -1;
+	}
+
+	// If writing to console
+	if(fd == STDOUT_FILENO) {
+		size_t offset = 0;
+		while(offset + 200 < size) {
+			putbuf((char*)(buffer + offset), (size_t) 200);
+			offset = offset + 200;
+		}
+		putbuf((char*)(buffer + offset), (size_t) (size - offset));
+		return size;
+	}
+
+	// If writing to a file
+	lock_acquire(&file_sys_lock);
+	struct file_desc* file_d = get_fd(fd);
+	if(file_d && file_d->file) {
+		result = file_write(file_d->file, buffer, size);
+	}
+	lock_release(&file_sys_lock);
+	return result;
 }
 
 void seek(int fd, unsigned position){
