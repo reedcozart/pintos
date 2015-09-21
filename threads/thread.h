@@ -80,6 +80,13 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+
+struct file_desc {
+	int id;
+	struct list_elem elem;
+	struct file* file;
+};
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -96,6 +103,7 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+		struct list file_descrips;
 #endif
 
     /* Owned by thread.c. */

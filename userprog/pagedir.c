@@ -1,10 +1,11 @@
-#include "userprog/pagedir.h"
+//#include "userprog/pagedir.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
+#include "threads/vaddr.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
