@@ -196,7 +196,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, char* cmd_line);
+static bool setup_stack (void **esp,const char* cmd_line);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -459,7 +459,7 @@ setup_stack (void **esp, const char* file_name)
         /* setup temporary pointer*/
         temp_ptr = PHYS_BASE;
         /* set temp_ptr to the spot*/
-        temp_ptr = temp_ptr - strlen(file_name) -1 ;//Not sure if we need the -1
+        temp_ptr = temp_ptr - strlen(file_name);//Not sure if we need the -1
         strcpy(temp_ptr, file_name); //copy into memory
 
         token = strtok_r(temp_ptr, " ", &saveptr); //do first tokenization
@@ -476,8 +476,8 @@ setup_stack (void **esp, const char* file_name)
           argc++;
         } 
         *temp_ptr = (char*)NULL;
-        temp_ptr = temp_ptr - 4;
         bottom = temp_ptr;
+        temp_ptr = temp_ptr - 4;
         /*reverse the pointers for the argv[0], argv[1], etc*/
         while(bottom < top){
           temp = *bottom;
@@ -489,7 +489,7 @@ setup_stack (void **esp, const char* file_name)
         temp_ptr-= 4;
         *temp_ptr = argc;
         temp_ptr -= 4;
-        *temp_ptr = void(*) ();
+        *temp_ptr = (void*)NULL;
 
       }
       else
