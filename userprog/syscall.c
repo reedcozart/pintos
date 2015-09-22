@@ -97,7 +97,29 @@ bool remove(const char* file){
 }
 
 int open(const char* file){
-
+	// Check validity of pointer
+	if(buffer + size - 1 >= PHYS_BASE || get_user(buffer + size - 1) == -1 ) {
+		exit(-1);
+		return -1;
+	}
+	lock_acquire(&file_sys_lock);
+	struct file* f = filesys_open(file);
+	if(!f) {
+		free(f);
+		lock_release(&file_sys_lock);
+		return -1;
+	}
+	struct file_desc* fd = palloc_get_page(0);
+	fd->file = file;
+	if(list_empty(&(thread_current()->file_descrips))) {
+		fd->id = 3;
+	}
+	else {
+		fd->id = list_entry(list_back(&(thread_current()->file_descrips)), struct file_desc, elem)->id + 1;
+	}
+	list_push_back(&(thread_current()->file_descrips), &(fd->elem));
+	lock_release(&file_sys_lock);
+	return fd->id;
 }
 
 int filesize(int fdid){
