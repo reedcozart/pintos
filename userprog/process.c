@@ -445,6 +445,7 @@ setup_stack (void **esp, const char* file_name)
   int position = 0;
   char* token;
   uint8_t word_align = 0;
+  size_t filenamesize = strlen(file_name);
 
   char** top;
   char** bottom;
@@ -460,7 +461,7 @@ setup_stack (void **esp, const char* file_name)
         temp_ptr = PHYS_BASE;
         /* set temp_ptr to the spot*/
         temp_ptr = temp_ptr - strlen(file_name);//Not sure if we need the -1
-        strcpy(temp_ptr, file_name); //copy into memory
+        strlcpy(temp_ptr, file_name, filenamesize); //copy into memory
 
         token = strtok_r(temp_ptr, " ", &saveptr); //do first tokenization
 
