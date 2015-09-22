@@ -1,4 +1,5 @@
 #include "userprog/syscall.h"
+#include "userprog/process.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include <stdlib.h>
@@ -10,11 +11,25 @@
 #include "devices/input.h"
 #include "devices/shutdown.h"
 #include "filesys/file.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
 struct lock file_sys_lock;
 
+void halt(void);
+void exit(int status);
+pid_t exec(const char* cmd_line);
+int wait(pid_t pid);
+bool create(const char* file, unsigned initial_size);
+bool remove(const char* file);
+int open(const char* file);
+int filesize(int fdid);
+int read(int fd, void* buffer, unsigned size);
+int write(int fd, const void* buffer, unsigned size);
+void seek(int fd, unsigned position);
+unsigned tell(int fd);
+void close(int fd);
 struct file_desc* get_fd(int fd);
 int get_user(const uint8_t* uaddr);
 
