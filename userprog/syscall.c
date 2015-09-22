@@ -113,7 +113,7 @@ bool remove(const char* file){
 
 int open(const char* file){
 	// Check validity of pointer
-	if(buffer + size - 1 >= PHYS_BASE || get_user(buffer + size - 1) == -1 ) {
+	if(file >= PHYS_BASE || get_user(file) == -1 ) {
 		exit(-1);
 		return -1;
 	}
