@@ -16,7 +16,7 @@ static void syscall_handler (struct intr_frame *);
 struct lock file_sys_lock;
 
 struct file_desc* get_fd(int fd);
-int get_user(const uint8_t *);
+int get_user(const uint8_t* uaddr);
 
 void
 syscall_init (void) 
@@ -113,7 +113,7 @@ int filesize(int fdid){
 
 int read(int fd, void* buffer, unsigned size){
 	int result = -1;
-	int offset;
+	unsigned offset;
 	
 	// Error check the buffer pointer
 	if(buffer + size - 1 >= PHYS_BASE || get_user(buffer + size - 1) == -1 ) {
