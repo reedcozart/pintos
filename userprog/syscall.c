@@ -101,7 +101,7 @@ int open(const char* file){
 }
 
 int filesize(int fdid){
-	struct file_desc* fd = get_file_descriptor(fdid);
+	struct file_desc* fd = get_fd(fdid);
 
 	if(fd && fd->file){
 		return file_length(fd->file);
