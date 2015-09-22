@@ -468,28 +468,28 @@ setup_stack (void **esp, const char* file_name)
         temp_ptr--; // go down one, push word_align
         *temp_ptr = word_align;
         
-        temp_ptr = temp_ptr - 4;
+        temp_ptr = temp_ptr - 1;
         top = temp_ptr;
         while(token != NULL){
           *temp_ptr = token;
           token = strtok_r(NULL, " ", &saveptr);
-          temp_ptr = temp_ptr - 4;
+          temp_ptr = temp_ptr - 1;
           argc++;
         } 
         *temp_ptr = (char*)NULL;
         bottom = temp_ptr;
-        temp_ptr = temp_ptr - 4;
+        temp_ptr = temp_ptr - 1;
         /*reverse the pointers for the argv[0], argv[1], etc*/
         while(bottom < top){
           temp = *bottom;
           *bottom = *top;
           *top = temp;
-          bottom = bottom + 4;
-          top = top - 4;        
+          bottom = bottom + 1;
+          top = top - 1;        
         }
-        temp_ptr-= 4;
+        temp_ptr-= 1;
         *temp_ptr = argc;
-        temp_ptr -= 4;
+        temp_ptr -= 1;
         *temp_ptr = (void*)NULL;
 
       }
