@@ -32,34 +32,82 @@ syscall_handler (struct intr_frame *f UNUSED)
 }
 
 void halt(void){
+	shutdown_power_off();
 
 }
 
 void exit(int status){
+	// struct thread* thisT = thread_current();
+
+	// //start cleanup
+	// struct file_desc* fd;		//place holder for file descriptors associated with this thread so we can close them
+	// struct child_thread* child;	//place holder for children processes
+	// struct list_elem* fdElem;	//place holder for beginning iterator for file descriptors
+	// struct list_elem* childElem;//place holder for beginning iterator for child processes
+
+	// //close file descriptors from the file descriptor list
+	// while(!list_empty(&(thisT->file_descs))){
+	// 	fdElem = list_begin(&(thisT->file_descs));		//get first element from list of FD
+	// 	fd = list_entry(fdElem, struct file_desc, elem);//get the fd from the list element
+	// 	close(fd->id)									//close each fd this process has open
+	// }
+
+	// //deal with children
+	// while(!list_empty(&(thisT->child_threads))){
+	// 	childElem = list_begin(&(thisT->child_threads));
+	// 	child = list_entry(childElem, struct child_thread, elem);
+
+	// }
 
 }
 
 pid_t exec(const char* cmd_line){
+	tid_t child;
 
+	if(cmd_line >=PHYS_BASE || get_user(cmd_line) == -1){	//REED, I need your max cmd Line char limit---- looked at process.c -> seems PHYS_BASE is the max
+		exit(-1);
+		return -1;
+	}else{
+		child = process_execute(cmd_line);
+		return child;
+	}
 }
 
 int wait(pid_t pid){
-
+	return process_wait(pid);
 }
 
 bool create(const char* file, unsigned initial_size){
+	if(file + initial_size > PHYS_BASE || get_user(file + initial_size -1) == -1){
+		exit(-1);
+		return -1;
+	}else{
+		return filesys_create(file, initial_size);
+	}
 
 }
 
 bool remove(const char* file){
-
+	if(file >= PHYS_BASE || get_user(file) == -1){
+		exit(-1);
+		return -1;
+	}else{
+		return filesys_remove(file);
+	}
 }
 
 int open(const char* file){
 
 }
 
-int filesize(int fd){
+int filesize(int fdid){
+	struct file_desc* fd = get_fd(fdid);
+
+	if(fd && fd->file){
+		return file_length(fd->file);
+	}else{
+		return -1;
+	}
 
 }
 
