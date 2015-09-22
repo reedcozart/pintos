@@ -1,15 +1,22 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <stdlib.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/synch.h"
+#include "threads/vaddr.h"
+#include "threads/malloc.h"
+#include "devices/input.h"
+#include "devices/shutdown.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 
 struct lock file_sys_lock;
 
 struct file_desc* get_fd(int fd);
+int get_user(const uint8_t *);
 
 void
 syscall_init (void) 
@@ -40,7 +47,7 @@ int wait(pid_t pid){
 
 }
 
-bool create(conts char* file, unsigned initial_size){
+bool create(const char* file, unsigned initial_size){
 
 }
 
@@ -48,7 +55,7 @@ bool remove(const char* file){
 
 }
 
-int open(cont char* file){
+int open(const char* file){
 
 }
 
@@ -128,7 +135,7 @@ unsigned tell(int fd){
 	int result = -1;
 	struct file_desc* filed = get_fd(fd);
 	if(filed && filed->file) {
-		result = file_tell(filed);
+		result = file_tell(filed->file);
 	}
 	lock_release(&file_sys_lock);
 	return result;
@@ -139,8 +146,8 @@ void close(int fd){
 	struct file_desc* filed = get_fd(fd);
 	if(filed && filed->file) {
 		file_close(filed->file);
-		list_remove(&(filedd->elem));
-		free(fd);
+		list_remove(&(filed->elem));
+		free(filed);
 	}
 	lock_release(&file_sys_lock);
 }
@@ -151,7 +158,7 @@ struct file_desc* get_fd(int fd) {
 
 	// Find the file descriptor 
 	struct list_elem* e = list_begin(&t->file_descrips);
-	while(e != list_end(&t->file_descrips) {
+	while(e != list_end(&t->file_descrips)) {
 		struct file_desc* d = list_entry(e, struct file_desc, elem);
 		if(d->id == fd) {
 			return d;
@@ -159,6 +166,13 @@ struct file_desc* get_fd(int fd) {
 		e = list_next(e);
 	}
 	return NULL;
+}
+
+// Gets byte at user virtual address
+int get_user(const uint8_t* uaddr) {
+	int result;
+	asm("movl $1f, %0; movzbl %1, %0; 1:" : "=&a" (result) : "m" (*uaddr));
+	return result;
 }
 
 
