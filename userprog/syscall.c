@@ -13,10 +13,14 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 
+#define ARGS_MAX 3
+#define USER_VADDR_BOTTOM ((void*) 0x08048000)
+
 static void syscall_handler (struct intr_frame *);
 
 struct lock file_sys_lock;
 
+void check_valid_pointer(void* addr);
 void halt(void);
 void exit(int status);
 pid_t exec(const char* cmd_line);
@@ -32,6 +36,8 @@ unsigned tell(int fd);
 void close(int fd);
 struct file_desc* get_fd(int fd);
 int get_user(const uint8_t* uaddr);
+int user_to_kernel_ptr(void* vaddr);
+void get_args(struct intr_frame* f, int* arg, int n); 
 
 void
 syscall_init (void) 
@@ -41,39 +47,107 @@ syscall_init (void)
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
-{
-  printf ("system call!\n");
-  thread_exit ();
+{	
+	int args[ARGS_MAX];
+	check_valid_pointer(f->esp);
+	switch(*(int*) f->esp) {
+	case SYS_HALT:
+		halt();
+		break;
+	case SYS_EXIT:
+		get_args(f, &args[0], 1);
+		exit(args[0]);
+		break;
+	case SYS_EXEC:
+		get_args(f, &args[0], 1);
+		args[0] = user_to_kernel_ptr((void*) args[0]);
+		f->eax = exec((const char*)args[0]);
+		break;
+	case SYS_WAIT:
+		get_args(f, &args[0], 1);
+		f->eax = wait(args[0]);
+		break;
+	case SYS_CREATE:
+		get_args(f, &args[0], 2);
+		args[0] = user_to_kernel_ptr((void*) args[0]);
+		f->eax = create((const char*) args[0], (unsigned) args[1]);
+		break;
+	case SYS_REMOVE:
+		get_args(f, &args[0], 1);
+		args[0] = user_to_kernel_ptr((void*) args[0]);
+		f->eax = remove((const char*) args[0]);
+		break;
+	case SYS_OPEN:
+		get_args(f, &args[0], 1);
+		args[0] = user_to_kernel_ptr((void*) args[0]);
+		f->eax = open((const char*)args[0]);
+		break;
+	case SYS_FILESIZE:
+		get_args(f, &args[0], 1);
+		f->eax = filesize(args[0]);
+		break;
+	case SYS_READ:
+		get_args(f, &args[0], 3);
+		args[1] = user_to_kernel_ptr((void*) args[1]);
+		f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
+		break;
+	case SYS_WRITE:
+		get_args(f, &args[0], 3);
+		args[1] = user_to_kernel_ptr((void*) args[1]);
+		f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
+		break;
+	case SYS_SEEK:
+		get_args(f, &args[0], 2);
+		seek(args[0], (unsigned) args[1]);
+		break;
+	case SYS_TELL:
+		get_args(f, &args[0], 1);
+		f->eax = tell(args[0]);
+		break;
+	case SYS_CLOSE:
+		get_args(f, &args[0], 1);
+		close(args[0]);
+		break;
+	default:
+		printf("Unimplemented system call");
+		thread_exit();
+	}
 }
 
 void halt(void){
 	shutdown_power_off();
-
 }
 
 void exit(int status){
-	// struct thread* thisT = thread_current();
+	 struct thread* t = thread_current();
 
-	// //start cleanup
-	// struct file_desc* fd;		//place holder for file descriptors associated with this thread so we can close them
-	// struct child_thread* child;	//place holder for children processes
-	// struct list_elem* fdElem;	//place holder for beginning iterator for file descriptors
-	// struct list_elem* childElem;//place holder for beginning iterator for child processes
+	 //start cleanup
+	 struct file_desc* fd;		//place holder for file descriptors associated with this thread so we can close them
+	 struct child_thread* child;	//place holder for children processes
+	 struct list_elem* fdElem;	//place holder for beginning iterator for file descriptors
+	 struct list_elem* childElem;//place holder for beginning iterator for child processes
 
-	// //close file descriptors from the file descriptor list
-	// while(!list_empty(&(thisT->file_descs))){
-	// 	fdElem = list_begin(&(thisT->file_descs));		//get first element from list of FD
-	// 	fd = list_entry(fdElem, struct file_desc, elem);//get the fd from the list element
-	// 	close(fd->id)									//close each fd this process has open
-	// }
+	 //close file descriptors from the file descriptor list
+	 while(!list_empty(&(t->file_descrips))){
+	 	fdElem = list_begin(&(t->file_descrips));		//get first element from list of FD
+  	fd = list_entry(fdElem, struct file_desc, elem);//get the fd from the list element
+	 close(fd->id)									//close each fd this process has open
+	}
 
-	// //deal with children
-	// while(!list_empty(&(thisT->child_threads))){
-	// 	childElem = list_begin(&(thisT->child_threads));
-	// 	child = list_entry(childElem, struct child_thread, elem);
+	 // Update child processes
+	 while(!list_empty(&(t->child_threads))){
+	 	childElem = list_begin(&(t->child_threads));
+	 	child = list_entry(childElem, struct child_thread, elem);
+		if(!child->exited) {
+			struct thread* orphan = get_thread_from_tid(child->pid);
+			orphan->parent_pid = 1; // Orphan is now main process
+		}
+		list_remove(&(child->elem));
+		palloc_free_page(child);
+	}
 
-	// }
-
+	// Update parent process
+	struct thread* parent = get_thread_from_tid(t->parent_pid);
 }
 
 pid_t exec(const char* cmd_line){
@@ -251,6 +325,38 @@ struct file_desc* get_fd(int fd) {
 		e = list_next(e);
 	}
 	return NULL;
+}
+
+void check_valid_pointer(void* addr) {
+	if(!is_user_vaddr(addr) || addr < USER_VADDR_BOTTOM) {
+		exit(-1);
+	}
+}
+
+int user_to_kernel_ptr(void* vaddr) {
+	check_valid_pointer(vaddr);
+	void* ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
+	if(!ptr) {
+		exit(-1);
+	}
+	return (int) ptr;
+}
+
+void get_args(struct intr_frame* f, int* arg, int n) {
+	int i;
+	int* ptr;
+	for(i = 0; i < n; i++) {
+		ptr = (int*) f->esp + i + 1;
+		check_valid_pointer((void*)ptr);
+		arg[i] = *ptr;
+	}
+}
+
+int get_four_bytes_user(const void* addr) {
+	// if the address goes past physical memory
+	if(addr >= PHYS_BASE) {
+		exit(-1);
+	}
 }
 
 // Gets byte at user virtual address

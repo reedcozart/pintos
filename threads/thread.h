@@ -102,8 +102,10 @@ struct thread
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
+		tid_t parent_pid;
     uint32_t *pagedir;                  /* Page directory. */
-		struct list file_descrips;
+		struct list file_descrips;i
+		struct list child_threads;
 #endif
 
     /* Owned by thread.c. */
