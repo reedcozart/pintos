@@ -131,7 +131,7 @@ void exit(int status){
 	 while(!list_empty(&(t->file_descrips))){
 	 	fdElem = list_begin(&(t->file_descrips));		//get first element from list of FD
   	fd = list_entry(fdElem, struct file_desc, elem);//get the fd from the list element
-	 close(fd->id)									//close each fd this process has open
+	 close(fd->id);									//close each fd this process has open
 	}
 
 	 // Update child processes
@@ -139,7 +139,7 @@ void exit(int status){
 	 	childElem = list_begin(&(t->child_threads));
 	 	child = list_entry(childElem, struct child_thread, elem);
 		if(!child->exited) {
-			struct thread* orphan = get_thread_from_tid(child->pid);
+			struct thread* orphan = get_thread_from_tid(child->tid);
 			orphan->parent_pid = 1; // Orphan is now main process
 		}
 		list_remove(&(child->elem));
@@ -148,6 +148,7 @@ void exit(int status){
 
 	// Update parent process
 	struct thread* parent = get_thread_from_tid(t->parent_pid);
+	//for(childElem = list_begin
 }
 
 pid_t exec(const char* cmd_line){

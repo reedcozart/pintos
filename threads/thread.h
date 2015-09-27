@@ -87,6 +87,14 @@ struct file_desc {
 	struct file* file;
 };
 
+struct child_thread {
+	tid_t tid;
+	int exit_status;
+	bool exited;
+	bool waiting;
+	struct list_elem elem;
+};
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -148,4 +156,5 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+struct thread* get_thread_for_tid(tid_t tid);
 #endif /* threads/thread.h */
