@@ -148,7 +148,15 @@ void exit(int status){
 
 	// Update parent process
 	struct thread* parent = get_thread_from_tid(t->parent_pid);
-	//for(childElem = list_begin
+	for(childElem = list_begin(&(parent->child_threads)); childElem != list_end(&(parent->child_threads)); childElem = list_next(childElem)) {
+		struct child_thread* ct = list_entry(childElem, struct child_thread, elem); 
+		if(ct->tid == t->tid) {
+			ct->exited = true;
+			ct->exit_status = status;
+			if(ct->waiting)
+				thread_unblock(parent);
+		}
+	}
 }
 
 pid_t exec(const char* cmd_line){
