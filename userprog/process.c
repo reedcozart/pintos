@@ -88,7 +88,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(1){} //just to debug, will remove 
+  //while(1){} //just to debug, will remove 
   return -1;
 }
 
@@ -451,51 +451,62 @@ setup_stack (void **esp, const char* file_name)
   char** bottom;
   char* temp;
 
+  int l;
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
-        *esp = PHYS_BASE;
-        /* setup temporary pointer*/
-        temp_ptr = PHYS_BASE;
-        /* set temp_ptr to the spot*/
-        temp_ptr = temp_ptr - strlen(file_name);//Not sure if we need the -1
-        strlcpy(temp_ptr, file_name, filenamesize); //copy into memory
+              *esp = PHYS_BASE;
+              /* setup temporary pointer*/
+              temp_ptr = PHYS_BASE;
+              /* set temp_ptr to the spot*/
+              temp_ptr = temp_ptr - strlen(file_name) - 1;//Not sure if we need the -1
+              strlcpy(temp_ptr, file_name, filenamesize + 20); //copy into memory
+              
+               // printf("%d : %d", strlen(temp_ptr), strlen(file_name));
+             // printf(temp_ptr);
+             // printf(file_name);
+              // strcpy(temp_ptr, file_name);
 
-        token = strtok_r(temp_ptr, " ", &saveptr); //do first tokenization
+              token = strtok_r(temp_ptr, " ", &saveptr); //do first tokenization
 
-        temp_ptr--; // go down one, push word_align
-        *temp_ptr = word_align;
-        
-        temp_ptr = temp_ptr - 1;
-        top = temp_ptr;
-        while(token != NULL){
-          *temp_ptr = token;
-          token = strtok_r(NULL, " ", &saveptr);
-          temp_ptr = temp_ptr - 1;
-          argc++;
-        } 
-        *temp_ptr = (char*)NULL;
-        bottom = temp_ptr;
-        temp_ptr = temp_ptr - 1;
-        /*reverse the pointers for the argv[0], argv[1], etc*/
-        while(bottom < top){
-          temp = *bottom;
-          *bottom = *top;
-          *top = temp;
-          bottom = bottom + 1;
-          top = top - 1;        
-        }
-        temp_ptr-= 1;
-        *temp_ptr = argc;
-        temp_ptr -= 1;
-        *temp_ptr = (void*)NULL;
+              temp_ptr--; // go down one, push word_align
+              *temp_ptr = word_align;
+
+              temp_ptr = temp_ptr - 1;
+              top = temp_ptr;
+              while(token != NULL){
+                      *temp_ptr = token;
+                      token = strtok_r(NULL, " ", &saveptr);
+                      temp_ptr = temp_ptr - 1;
+                      argc++;
+              } 
+              *temp_ptr = (char*)NULL;
+              bottom = temp_ptr;
+              argv = bottom;
+              temp_ptr = temp_ptr - 1;
+
+              /*reverse the pointers for the argv[0], argv[1], etc*/
+              while(bottom < top){
+                      temp = *bottom;
+                      *bottom = *top;
+                      *top = temp;
+                      bottom = bottom + 1;
+                      top = top - 1;        
+              }
+              *temp_ptr = argv; 
+              temp_ptr-= 1;
+              *temp_ptr = argc;
+              temp_ptr -= 1;
+              *temp_ptr = (void*)NULL;
 
       }
       else
         palloc_free_page (kpage);
     }
+ // hex_dump (temp_ptr, temp_ptr, 50, true);
+
   return success;
 }
 
