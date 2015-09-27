@@ -104,7 +104,7 @@ struct thread
     /* Owned by userprog/process.c. */
 		tid_t parent_pid;
     uint32_t *pagedir;                  /* Page directory. */
-		struct list file_descrips;i
+		struct list file_descrips;
 		struct list child_threads;
 #endif
 
