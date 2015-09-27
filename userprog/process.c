@@ -90,7 +90,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  //while(1){} //just to debug, will remove 
+  while(1){} //just to debug, will remove 
   return -1;
 }
 
@@ -223,7 +223,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
-
+  printf("INSIDE LOAD");
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL) 
@@ -506,9 +506,12 @@ setup_stack (void **esp, const char* file_name)
       else
         palloc_free_page (kpage);
     }
- // hex_dump (temp_ptr, temp_ptr, 50, true);
+    hex_dump (temp_ptr, temp_ptr, 50, true);
     *esp = temp_ptr;	
 	printf("(args) argc %i\n", argc);
+	printf("(args) argv[0] = '%s'\n", argv[0]);
+	printf("(args) argv[1] = %s \n ", argv[1]);
+	printf("(args) end");
   return success;
 }
 
