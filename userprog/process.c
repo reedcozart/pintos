@@ -316,7 +316,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_close (file);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -451,13 +451,12 @@ setup_stack (void **esp, const char* file_name)
   char** bottom;
   char* temp;
 
-  int l;
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
-              *esp = PHYS_BASE;
+              //*esp = PHYS_BASE;
               /* setup temporary pointer*/
               temp_ptr = PHYS_BASE;
               /* set temp_ptr to the spot*/
@@ -506,7 +505,7 @@ setup_stack (void **esp, const char* file_name)
         palloc_free_page (kpage);
     }
  // hex_dump (temp_ptr, temp_ptr, 50, true);
-
+    *esp = temp_ptr;
   return success;
 }
 
