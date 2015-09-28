@@ -90,7 +90,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  //while(1){} //just to debug, will remove 
+  while(1){} //just to debug, will remove 
   return -1;
 }
 
@@ -225,8 +225,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
-  process_activate ();
-  printf("INSIDE LOAD");
+  process_activate (); //
+  //printf("INSIDE LOAD");
   /* Open executable file. */
 
   strlcpy(local_cpy, file_name, sizeof(local_cpy));
@@ -238,7 +238,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
     else{
-    	printf("Load worked\n");
+    	//printf("Load worked\n");
     }
 
   /* Read and verify executable header. */
@@ -462,6 +462,13 @@ setup_stack (void **esp, const char* file_name)
   char** bottom;
   char* temp;
 
+
+  char* toks[100] = {};
+  char* stack_toks[100] = {};
+  int i = 0;
+  int j;
+  char* argv_addr;
+
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
@@ -470,57 +477,106 @@ setup_stack (void **esp, const char* file_name)
               //*esp = PHYS_BASE;
               /* setup temporary pointer*/
               temp_ptr = PHYS_BASE;
+              token = strtok_r(file_name, " ", &saveptr);
+              while(token != NULL){
+              	toks[i] = token;
+              	token = strtok_r(NULL, " ", &saveptr);
+              	i++;
+              }
+              i--;
+
+              temp_ptr = temp_ptr - filenamesize - 1;
+              temp = temp_ptr;
+              for(j = 0; j<=i; j++){
+              	strlcpy(temp, toks[j], strlen(toks[j]) + 1);
+              	stack_toks[j] = temp;
+              	temp = temp + strlen(toks[j]) + 1;
+              }
+              //hex_dump(temp, temp_ptr, 50, true);
+              temp_ptr--;
+              *temp_ptr = word_align;
+
+              temp_ptr -=4;
+              *temp_ptr = (char*)NULL;
+              j = i;
+
+              while(j>=0){
+              	temp_ptr-=4;
+              	memcpy(temp_ptr, &stack_toks[j], 4);
+              	j--;
+              }
+              argv_addr = temp_ptr;
+              temp_ptr-=4;
+              memcpy(temp_ptr, &argv_addr, 4); // argv
+              temp_ptr -=4;
+              *temp_ptr = i + 1; //argc
+              temp_ptr-=4;
+              *temp_ptr = (void*)NULL;
+
+
+
               /* set temp_ptr to the spot*/
-              temp_ptr = temp_ptr - strlen(file_name) - 1;//Not sure if we need the -1
-              strlcpy(temp_ptr, file_name, filenamesize + 20); //copy into memory
-              
+              //temp_ptr = temp_ptr - strlen(file_name) - 1;//Not sure if we need the -1
+              //strlcpy(temp_ptr, file_name, filenamesize + 1); //copy into memory
+              //printf("DEBUG: %s",temp_ptr);
+              //printf("\n");
+
+             
+
+
                // printf("%d : %d", strlen(temp_ptr), strlen(file_name));
              // printf(temp_ptr);
              // printf(file_name);
               // strcpy(temp_ptr, file_name);
 
-              token = strtok_r(temp_ptr, " ", &saveptr); //do first tokenization
+//              token = strtok_r(temp_ptr, " ", &saveptr); //do first tokenization
+//
+ //             temp_ptr--; // go down one, push word_align
+ //             *temp_ptr = word_align;/
 
-              temp_ptr--; // go down one, push word_align
-              *temp_ptr = word_align;
-
-              temp_ptr = temp_ptr - 1;
-              top = temp_ptr;
-              while(token != NULL){
-                      *temp_ptr = token;
-                      token = strtok_r(NULL, " ", &saveptr);
-                      temp_ptr = temp_ptr - 1;
-                      argc++;
-              } 
-              *temp_ptr = (char*)NULL;
-              bottom = temp_ptr;
-              argv = bottom;
-              temp_ptr = temp_ptr - 1;
+              
+   //           top = temp_ptr;
+    //          while(token != NULL){
+     //                 *temp_ptr = token;
+      //                token = strtok_r(NULL, " ", &saveptr);
+       //               temp_ptr-=4;
+        //              argc++;
+         //     } 
+//              *temp_ptr = (char*)NULL;
+ //             bottom = temp_ptr;
+  //            argv = bottom;
+   //           temp_ptr-=4;/
 
               /*reverse the pointers for the argv[0], argv[1], etc*/
-              while(bottom < top){
-                      temp = *bottom;
-                      *bottom = *top;
-                      *top = temp;
-                      bottom = bottom + 1;
-                      top = top - 1;        
-              }
-              *temp_ptr = argv; 
-              temp_ptr-= 1;
-              *temp_ptr = argc;
-              temp_ptr -= 1;
-              *temp_ptr = (void*)NULL;
-
+            //  hex_dump (temp_ptr, temp_ptr, 100, true);
+             // while(bottom < top){
+              //        temp = *bottom;
+               //       *bottom = *top;
+                //      *top = temp;
+                 //     bottom+=4;
+                  //    top-=4;        
+//              }
+ //             *temp_ptr = argv; 
+  //            temp_ptr-=4;
+   //           *temp_ptr = argc;
+     //         temp_ptr-=4;
+      //        *temp_ptr = (void*)NULL;
+       //       hex_dump (temp_ptr, temp_ptr, 100, true);
+        //      printf(argv[0]);
+              
       }
       else
         palloc_free_page (kpage);
     }
-    hex_dump (temp_ptr, temp_ptr, 50, true);
-    *esp = temp_ptr;	
+    
+    	
 	//printf("(args) argc %i\n", argc);
 	//printf("(args) argv[0] = '%s'\n", argv[0]);
 	//printf("(args) argv[1] = %s \n ", argv[1]);
 	//printf("(args) end");
+	//hex_dump(temp_ptr, temp_ptr, 100, true);
+
+	*esp = temp_ptr;
   return success;
 }
 
