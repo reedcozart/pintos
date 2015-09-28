@@ -31,7 +31,7 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 	
-	printf("(args) begin\n");
+	//printf("(args) begin\n");
   
 	/* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -90,7 +90,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(1){} //just to debug, will remove 
+  //while(1){} //just to debug, will remove 
   return -1;
 }
 
@@ -217,6 +217,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+  char local_cpy[1024];
+  char* saveptr;
+  char* tok;
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -225,11 +228,17 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
   printf("INSIDE LOAD");
   /* Open executable file. */
-  file = filesys_open (file_name);
+
+  strlcpy(local_cpy, file_name, sizeof(local_cpy));
+  tok = strtok_r(local_cpy, " ", &saveptr);
+  file = filesys_open (tok);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
+    }
+    else{
+    	printf("Load worked\n");
     }
 
   /* Read and verify executable header. */
@@ -281,7 +290,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
               uint32_t read_bytes, zero_bytes;
               if (phdr.p_filesz > 0)
                 {
-                  /* Normal segment.
+                  /* Normal  segment.
                      Read initial part from disk and zero the rest. */
                   read_bytes = page_offset + phdr.p_filesz;
                   zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
@@ -508,10 +517,10 @@ setup_stack (void **esp, const char* file_name)
     }
     hex_dump (temp_ptr, temp_ptr, 50, true);
     *esp = temp_ptr;	
-	printf("(args) argc %i\n", argc);
-	printf("(args) argv[0] = '%s'\n", argv[0]);
-	printf("(args) argv[1] = %s \n ", argv[1]);
-	printf("(args) end");
+	//printf("(args) argc %i\n", argc);
+	//printf("(args) argv[0] = '%s'\n", argv[0]);
+	//printf("(args) argv[1] = %s \n ", argv[1]);
+	//printf("(args) end");
   return success;
 }
 
