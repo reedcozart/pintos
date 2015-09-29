@@ -110,8 +110,10 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 		struct list locks;
+    bool load;
 
     struct semaphore sem;
+    struct semaphore sem_load;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
 		tid_t parent_tid;
@@ -163,6 +165,6 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-struct thread* get_thread_for_tid(tid_t tid);
+struct thread* get_thread_from_tid(tid_t tid);
 bool thread_alive (int pid);
 #endif /* threads/thread.h */

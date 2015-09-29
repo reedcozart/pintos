@@ -211,6 +211,8 @@ thread_create (const char *name, int priority,
   t->parent_tid = thread_tid();
   struct child_process* cp = add_child_process(t->tid);
   t->cp = cp;
+  sema_init(&t->sem, 0);
+  sema_init(&t->sem_load, 0);
 
   /* Add to run queue. */
   thread_unblock (t);

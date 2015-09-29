@@ -32,6 +32,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  struct thread* t;
   
   char local_cpy[1024];
   char* saveptr;
@@ -50,8 +51,19 @@ process_execute (const char *file_name)
  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (tok, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  t = get_thread_from_tid(tid);
+  
+  
+
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
+    return -1;
+	}
+  sema_down(&(t->sem_load));
+
+  if(t->load == LOAD_FAIL){
+  	return -1;
+  }
   return tid;
 }
 
@@ -62,9 +74,11 @@ start_process (void *file_name_)
 {
   char *file_name = file_name_;
   struct intr_frame if_;
+  struct thread* t;
   bool success;
   //printf("Process begins\n");
   /* Initialize interrupt frame and load executable. */
+  t = thread_current();
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
@@ -73,11 +87,12 @@ start_process (void *file_name_)
   //printf("Load complete\n");
   if (success) {
     //printf("Load successful\n");
-      thread_current()->cp->load = LOAD_SUCCESS;
+      thread_current()->load = LOAD_SUCCESS;
   }
   else{
-      thread_current()->cp->load = LOAD_FAIL;
+      thread_current()->load = LOAD_FAIL;
   }
+  sema_up(&t->sem_load);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -304,6 +319,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
+
       goto done; 
     }
     else{

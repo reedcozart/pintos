@@ -84,13 +84,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_REMOVE:
 	//printf("SYS_REMOVE\n");
 		get_args(f, &args[0], 1);
-		//args[0] = user_to_kernel_ptr((void*) args[0]);
+		user_to_kernel_ptr((void*) args[0]);
 		f->eax = remove((const char*) args[0]);
 		break;
 	case SYS_OPEN:
 	//printf("SYS_OPEN\n");
 		get_args(f, &args[0], 1);
-		//args[0] = user_to_kernel_ptr((void*) args[0]);
+		user_to_kernel_ptr((void*) args[0]);
 		f->eax = open((const char*)args[0]);
 		break;
 	case SYS_FILESIZE:
@@ -106,7 +106,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_WRITE:
 	///printf("SYS_WRITE\n");
 		get_args(f, &args[0], 3);
-		//args[1] = user_to_kernel_ptr((void*) args[1]);
+		user_to_kernel_ptr((void*) args[1]);
 		//f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
 		f->eax = write(args[0], (void*) args[1], (unsigned) args[2]);
 		break;
