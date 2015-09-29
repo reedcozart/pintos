@@ -67,7 +67,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_EXEC:
 	//printf("SYS_EXEC\n");
 		get_args(f, &args[0], 1);
-		args[0] = user_to_kernel_ptr((void*) args[0]);
+		user_to_kernel_ptr((void*) args[0]);
 		f->eax = exec((const char*)args[0]);
 		break;
 	case SYS_WAIT:
@@ -78,7 +78,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_CREATE:
 	//printf("SYS_CREATE\n");
 		get_args(f, &args[0], 2);
-		//args[0] = user_to_kernel_ptr((void*) args[0]);
+		user_to_kernel_ptr((void*) args[0]);
 		f->eax = create((const char*) args[0], (unsigned) args[1]);
 		break;
 	case SYS_REMOVE:
