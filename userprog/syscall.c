@@ -133,44 +133,18 @@ void halt(void){
 }
 
 void exit(int status){
-	 struct thread* t = thread_current();
+  struct thread *t = thread_current ();
+  printf("%s: exit(%d)\n", t->name, status);
+  thread_exit ();
+  NOT_REACHED ();
 
 	 //start cleanup
-	 struct file_desc* fd;		//place holder for file descriptors associated with this thread so we can close them
-	 struct child_thread* child;	//place holder for children processes
-	 struct list_elem* fdElem;	//place holder for beginning iterator for file descriptors
-	 struct list_elem* childElem;//place holder for beginning iterator for child processes
-
+//	 struct file_desc* fd;		//place holder for file descriptors associated with this thread so we can close them
+//	 struct child_thread* child;	//place holder for children processes
+//	 struct list_elem* fdElem;	//place holder for beginning iterator for file descriptors
+//	 struct list_elem* childElem;//place holder for beginning iterator for child processes
+//
 	 //close file descriptors from the file descriptor list
-	 while(!list_empty(&(t->file_descrips))){
-	 	fdElem = list_begin(&(t->file_descrips));		//get first element from list of FD
-  	fd = list_entry(fdElem, struct file_desc, elem);//get the fd from the list element
-	 close(fd->id);									//close each fd this process has open
-	}
-
-	 // Update child processes
-	 while(!list_empty(&(t->child_threads))){
-	 	childElem = list_begin(&(t->child_threads));
-	 	child = list_entry(childElem, struct child_thread, elem);
-		if(!child->exited) {
-			struct thread* orphan = get_thread_from_tid(child->tid);
-			orphan->parent_pid = 1; // Orphan is now main process
-		}
-		list_remove(&(child->elem));
-		palloc_free_page(child);
-	}
-
-	// Update parent process
-	struct thread* parent = get_thread_from_tid(t->parent_pid);
-	for(childElem = list_begin(&(parent->child_threads)); childElem != list_end(&(parent->child_threads)); childElem = list_next(childElem)) {
-		struct child_thread* ct = list_entry(childElem, struct child_thread, elem); 
-		if(ct->tid == t->tid) {
-			ct->exited = true;
-			ct->exit_status = status;
-			if(ct->waiting)
-				thread_unblock(parent);
-		}
-	}
 
 	printf("NO PAGE FAULT\n");
 }
