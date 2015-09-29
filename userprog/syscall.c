@@ -264,6 +264,7 @@ int read(int fd, void* buffer, unsigned size){
 		if(file_d && file_d->file) {
 			result = file_read(file_d->file, buffer, size);
 		}
+		lock_release(&file_sys_lock);
 	}
 	return result;
 }
