@@ -100,6 +100,7 @@ struct thread
     /* Owned by thread.c. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
+    int returnval;
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
@@ -112,7 +113,7 @@ struct thread
     struct semaphore sem;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-		tid_t parent_pid;
+		tid_t parent_tid;
     uint32_t *pagedir;                  /* Page directory. */
 		struct list file_descrips;
 		struct list child_threads;

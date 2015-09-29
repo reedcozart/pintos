@@ -134,7 +134,7 @@ void halt(void){
 
 void exit(int status){
   struct thread *t = thread_current ();
-  t->status = status;
+  t->returnval = status;
   printf("%s: exit(%d)\n", t->name, status);
   thread_exit ();
   NOT_REACHED ();
