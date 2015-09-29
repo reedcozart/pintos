@@ -88,10 +88,32 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  while(1){} //just to debug, will remove 
-  return -1;
+  //while(1){} //just to debug, will remove 
+  int result = -1;
+  struct thread *t = thread_current ();
+  struct thread *tchild = get_thread_from_tid(child_tid);
+  struct thread *parent;
+  struct list_elem *elem = NULL;
+  struct dead_thread *d = NULL;
+
+  if(tchild == NULL)
+  	goto end;
+  
+  parent = get_thread_from_tid(tchild->parent_pid);
+
+  
+
+  if( parent != t)
+  	goto end;
+
+  sema_down(tchild->sem);
+  result = tchild->thread_status;
+  return result;
+
+end:
+	return result;
 }
 
 /* Free the current process's resources. */
