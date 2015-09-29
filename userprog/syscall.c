@@ -248,7 +248,7 @@ int read(int fd, void* buffer, unsigned size){
 	unsigned offset;
 	
 	// Error check the buffer pointer
-	if(checkMemorySpace((void*) file, size)) {
+	if(checkMemorySpace((void*) buffer, size)) {
 
 		// If reading from stdin
 		if(fd == STDIN_FILENO) {
