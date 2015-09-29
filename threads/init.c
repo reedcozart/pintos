@@ -285,8 +285,10 @@ run_task (char **argv)
   
   printf ("Executing '%s':\n", task);
 #ifdef USERPROG
+  //printf("PROCESS WAIT STARTING\n");
   process_wait (process_execute (task));
 #else
+  //printf("RUN TEST STARTING\n");
   run_test (task);
 #endif
   printf ("Execution of '%s' complete.\n", task);
