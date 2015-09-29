@@ -157,6 +157,8 @@ void exit(int status){
 				thread_unblock(parent);
 		}
 	}
+
+	printf("NO PAGE FAULT\n");
 }
 
 pid_t exec(const char* cmd_line){
