@@ -45,7 +45,7 @@ void
 syscall_init (void) 
 {
   lock_init(&file_sys_lock);
-  printf("LOCK INITIALIZED\n");
+  //printf("LOCK INITIALIZED\n");
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -151,7 +151,7 @@ void exit(int status){
 //
 	 //close file descriptors from the file descriptor list
 
-	printf("NO PAGE FAULT\n");
+	//printf("NO PAGE FAULT\n");
 }
 
 pid_t exec(const char* cmd_line){
@@ -173,7 +173,7 @@ int wait(pid_t pid){
 
 bool create(const char* file, unsigned initial_size){
 	if(checkMemorySpace((void*) file, initial_size)) {
-		printf("creating filesys\n");
+		//printf("creating filesys\n");
 		return filesys_create(file, initial_size);
 	}
 	/*if(file + initial_size > PHYS_BASE || get_user(file + initial_size -1) == -1){
@@ -197,22 +197,22 @@ bool remove(const char* file){
 }
 
 int open(const char* file){
-	printf("OPEN STARTS\n");
+	//printf("OPEN STARTS\n");
 	if(user_to_kernel_ptr((void*) file)) {
-		printf("OPEN DID NOT FAIL\n");
-		debug_backtrace();
+		//printf("OPEN DID NOT FAIL\n");
+		//debug_backtrace();
 		lock_acquire(&file_sys_lock);
-		printf("Lock acquired.\n");
-		printf("File name = %s\n", file);
+		//printf("Lock acquired.\n");
+		//printf("File name = %s\n", file);
 		struct file* f = filesys_open(file);
 		if(!f) {
-			printf("NULL FILE\n");
+			//printf("NULL FILE\n");
 			free(f);
 			lock_release(&file_sys_lock);
 			return -1;
 		}
 		struct file_desc* fd = palloc_get_page(0);
-		fd->file = file;
+		fd->file = f;
 		if(list_empty(&(thread_current()->file_descrips))) {
 			fd->id = 3;
 		}
@@ -223,7 +223,7 @@ int open(const char* file){
 		lock_release(&file_sys_lock);
 		return fd->id;
 	}
-	printf("OPEN FAILED\n");
+	//printf("OPEN FAILED\n");
 	return -1;
 		// Check validity of pointer
 		/*if(file >= PHYS_BASE || get_user(file) == -1 ) {
@@ -327,7 +327,7 @@ void close(int fd){
 	if(filed && filed->file) {
 		file_close(filed->file);
 		list_remove(&(filed->elem));
-		free(filed);
+		palloc_free_page(filed);
 	}
 	lock_release(&file_sys_lock);
 }
@@ -350,7 +350,7 @@ struct file_desc* get_fd(int fd) {
 
 void check_valid_pointer(void* addr) {
 	if(!is_user_vaddr(addr) || addr < USER_VADDR_BOTTOM) {
-		printf("INVALID POINTER\n");
+		//printf("INVALID POINTER\n");
 		exit(-1);
 	}
 }
@@ -359,7 +359,7 @@ int user_to_kernel_ptr(void* vaddr) {
 	check_valid_pointer(vaddr);
 	void* ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
 	if(!ptr) {
-		printf("INVALID MEMORY ACCESS\n");
+		//printf("INVALID MEMORY ACCESS\n");
 		exit(-1);
 	}
 	return (int) ptr;
@@ -375,10 +375,10 @@ void process_close_file (int fd)
       next = list_next(e);
       struct file_desc *pf = list_entry (e, struct file_desc, elem);
       if (fd == pf->id || fd == CLOSE_ALL)
-	{
+	  {
 	  file_close(pf->file);
 	  list_remove(&pf->elem);
-	  free(pf);
+	  palloc_free_page(pf);
 	  if (fd != CLOSE_ALL)
 	    {
 	      return;
