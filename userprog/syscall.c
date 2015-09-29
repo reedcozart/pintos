@@ -52,59 +52,73 @@ syscall_handler (struct intr_frame *f UNUSED)
 	check_valid_pointer(f->esp);
 	switch(*(int*) f->esp) {
 	case SYS_HALT:
+		printf("SYS_HALT\n");
 		halt();
 		break;
 	case SYS_EXIT:
+	printf("SYS_EXIT\n");
 		get_args(f, &args[0], 1);
 		exit(args[0]);
 		break;
 	case SYS_EXEC:
+	printf("SYS_EXEC\n");
 		get_args(f, &args[0], 1);
 		args[0] = user_to_kernel_ptr((void*) args[0]);
 		f->eax = exec((const char*)args[0]);
 		break;
 	case SYS_WAIT:
+	printf("SYS_WAIT\n");
 		get_args(f, &args[0], 1);
 		f->eax = wait(args[0]);
 		break;
 	case SYS_CREATE:
+	printf("SYS_CREATE\n");
 		get_args(f, &args[0], 2);
 		args[0] = user_to_kernel_ptr((void*) args[0]);
 		f->eax = create((const char*) args[0], (unsigned) args[1]);
 		break;
 	case SYS_REMOVE:
+	printf("SYS_REMOVE\n");
 		get_args(f, &args[0], 1);
 		args[0] = user_to_kernel_ptr((void*) args[0]);
 		f->eax = remove((const char*) args[0]);
 		break;
 	case SYS_OPEN:
+	printf("SYS_OPEN\n");
 		get_args(f, &args[0], 1);
 		args[0] = user_to_kernel_ptr((void*) args[0]);
 		f->eax = open((const char*)args[0]);
 		break;
 	case SYS_FILESIZE:
+	printf("SYS_FILESIZE\n");
 		get_args(f, &args[0], 1);
 		f->eax = filesize(args[0]);
 		break;
 	case SYS_READ:
+	printf("SYS_READ\n");
 		get_args(f, &args[0], 3);
-		args[1] = user_to_kernel_ptr((void*) args[1]);
+		args[1] = user_to_kernel_ptr((void*) args[1]); //causing page fault
 		f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
 		break;
 	case SYS_WRITE:
+	printf("SYS_WRITE\n");
 		get_args(f, &args[0], 3);
-		args[1] = user_to_kernel_ptr((void*) args[1]);
-		f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
+		//args[1] = user_to_kernel_ptr((void*) args[1]);
+		//f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
+		f->eax = write(args[0], (void*) args[1], (unsigned) args[2]);
 		break;
 	case SYS_SEEK:
+	printf("SYS_SEEK\n");
 		get_args(f, &args[0], 2);
 		seek(args[0], (unsigned) args[1]);
 		break;
 	case SYS_TELL:
+	printf("SYS_TELL\n");
 		get_args(f, &args[0], 1);
 		f->eax = tell(args[0]);
 		break;
 	case SYS_CLOSE:
+	printf("SYS_CLOSE\n");
 		get_args(f, &args[0], 1);
 		close(args[0]);
 		break;
