@@ -272,30 +272,26 @@ int read(int fd, void* buffer, unsigned size){
 int write(int fd, const void* buffer, unsigned size){
 	int result = -1;
 
-	// Error check the buffer pointer
-	if(buffer + size - 1 >= PHYS_BASE || get_user(buffer + size - 1) == -1 ) {
-		exit(-1);
-		return -1;
-	}
-
-	// If writing to console
-	if(fd == STDOUT_FILENO) {
-		size_t offset = 0;
-		while(offset + 200 < size) {
-			putbuf((char*)(buffer + offset), (size_t) 200);
-			offset = offset + 200;
+	if(checkMemorySpace((void*) buffer, size)) {
+		// If writing to console
+		if(fd == STDOUT_FILENO) {
+			size_t offset = 0;
+			while(offset + 200 < size) {
+				putbuf((char*)(buffer + offset), (size_t) 200);
+				offset = offset + 200;
+			}
+			putbuf((char*)(buffer + offset), (size_t) (size - offset));
+			return size;
 		}
-		putbuf((char*)(buffer + offset), (size_t) (size - offset));
-		return size;
-	}
 
-	// If writing to a file
-	lock_acquire(&file_sys_lock);
-	struct file_desc* file_d = get_fd(fd);
-	if(file_d && file_d->file) {
-		result = file_write(file_d->file, buffer, size);
-	}
-	lock_release(&file_sys_lock);
+		// If writing to a file
+		lock_acquire(&file_sys_lock);
+		struct file_desc* file_d = get_fd(fd);
+		if(file_d && file_d->file) {
+			result = file_write(file_d->file, buffer, size);
+		}
+		lock_release(&file_sys_lock);
+	}	
 	return result;
 }
 
