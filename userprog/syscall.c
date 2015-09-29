@@ -248,25 +248,23 @@ int read(int fd, void* buffer, unsigned size){
 	unsigned offset;
 	
 	// Error check the buffer pointer
-	if(buffer + size - 1 >= PHYS_BASE || get_user(buffer + size - 1) == -1 ) {
-		exit(-1);
-		return -1;
-	}
+	if(checkMemorySpace((void*) file, size)) {
 
-	// If reading from stdin
-	if(fd == STDIN_FILENO) {
-		uint8_t* local_buffer = (uint8_t*) buffer;
-		for(offset = 0; offset < size; offset++) {
-			local_buffer[offset] = input_getc();
+		// If reading from stdin
+		if(fd == STDIN_FILENO) {
+			uint8_t* local_buffer = (uint8_t*) buffer;
+			for(offset = 0; offset < size; offset++) {
+				local_buffer[offset] = input_getc();
+			}
+			return size;
 		}
-		return size;
-	}
 
-	// If reading from a file
-	lock_acquire(&file_sys_lock);
-	struct file_desc* file_d = get_fd(fd);
-	if(file_d && file_d->file) {
-		result = file_read(file_d->file, buffer, size);
+		// If reading from a file
+		lock_acquire(&file_sys_lock);
+		struct file_desc* file_d = get_fd(fd);
+		if(file_d && file_d->file) {
+			result = file_read(file_d->file, buffer, size);
+		}
 	}
 	return result;
 }
