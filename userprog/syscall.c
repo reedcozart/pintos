@@ -168,13 +168,15 @@ int wait(pid_t pid){
 }
 
 bool create(const char* file, unsigned initial_size){
-	if(file + initial_size > PHYS_BASE || get_user(file + initial_size -1) == -1){
+	if(checkMemorySpace((void*) file, initial_size)) {
+		return filesys_create(file, initial_size);
+	}
+	/*if(file + initial_size > PHYS_BASE || get_user(file + initial_size -1) == -1){
 		exit(-1);
 		return -1;
 	}else{
 		return filesys_create(file, initial_size);
-	}
-
+	}*/
 }
 
 bool remove(const char* file){
@@ -442,4 +444,11 @@ int get_user(const uint8_t* uaddr) {
 	return result;
 }
 
+int checkMemorySpace(void* vaddr, int size) {
+	int i;
+	for(i = 0; i < size; i++) {
+		user_to_kernel_ptr(vaddr);
+	}
+	return 1;
+}
 
