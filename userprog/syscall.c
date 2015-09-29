@@ -171,10 +171,13 @@ int wait(pid_t pid){
 }
 
 bool create(const char* file, unsigned initial_size){
-	if(checkMemorySpace((void*) file, initial_size)) {
-		//printf("creating filesys\n");
-		return filesys_create(file, initial_size);
+	if(file) {
+		if(checkMemorySpace((void*) file, initial_size)) {
+			//printf("creating filesys\n");
+			return filesys_create(file, initial_size);
+		}
 	}
+	return -1;
 	/*if(file + initial_size > PHYS_BASE || get_user(file + initial_size -1) == -1){
 		exit(-1);
 		return -1;
