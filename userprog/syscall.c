@@ -156,11 +156,7 @@ void exit(int status){
 pid_t exec(const char* cmd_line){
 	tid_t child;
 
-	if(cmd_line >=PHYS_BASE || get_user(cmd_line) == -1){	//REED, I need your max cmd Line char limit---- looked at process.c -> seems PHYS_BASE is the max
-		exit(-1);
-		return -1;
-	}else{
-		//printf("EXECUTING %s\n", cmd_line);
+	if(user_to_kernel_ptr((void*) cmd_line)){	
 		child = process_execute(cmd_line);
 		return child;
 	}
