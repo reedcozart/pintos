@@ -157,6 +157,7 @@ pid_t exec(const char* cmd_line){
 		exit(-1);
 		return -1;
 	}else{
+		//printf("EXECUTING %s\n", cmd_line);
 		child = process_execute(cmd_line);
 		return child;
 	}
@@ -340,6 +341,81 @@ int user_to_kernel_ptr(void* vaddr) {
 		exit(-1);
 	}
 	return (int) ptr;
+}
+
+void process_close_file (int fd)
+{
+  struct thread *t = thread_current();
+  struct list_elem *next, *e = list_begin(&t->file_descrips);
+
+  while (e != list_end (&t->file_descrips))
+    {
+      next = list_next(e);
+      struct file_desc *pf = list_entry (e, struct file_desc, elem);
+      if (fd == pf->id || fd == CLOSE_ALL)
+	{
+	  file_close(pf->file);
+	  list_remove(&pf->elem);
+	  free(pf);
+	  if (fd != CLOSE_ALL)
+	    {
+	      return;
+	    }
+	}
+      e = next;
+    }
+}
+
+struct child_process* add_child_process (int pid)
+{
+  struct child_process* cp = malloc(sizeof(struct child_process));
+  cp->pid = pid;
+  cp->load = NOT_LOADED;
+  cp->wait = false;
+  cp->exit = false;
+  lock_init(&cp->wait_lock);
+  list_push_back(&thread_current()->child_threads,
+		 &cp->elem);
+  return cp;
+}
+
+struct child_process* get_child_process (int pid)
+{
+  struct thread *t = thread_current();
+  struct list_elem *e;
+
+  for (e = list_begin (&t->child_threads); e != list_end (&t->child_threads);
+       e = list_next (e))
+        {
+          struct child_process *cp = list_entry (e, struct child_process, elem);
+          if (pid == cp->pid)
+	    {
+	      return cp;
+	    }
+        }
+  return NULL;
+}
+
+void remove_child_process (struct child_process *cp)
+{
+  list_remove(&cp->elem);
+  free(cp);
+}
+
+void remove_child_processes (void)
+{
+  struct thread *t = thread_current();
+  struct list_elem *next, *e = list_begin(&t->child_threads);
+
+  while (e != list_end (&t->child_threads))
+    {
+      next = list_next(e);
+      struct child_process *cp = list_entry (e, struct child_process,
+					     elem);
+      list_remove(&cp->elem);
+      free(cp);
+      e = next;
+    }
 }
 
 void get_args(struct intr_frame* f, int* arg, int n) {

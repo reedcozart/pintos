@@ -7,6 +7,7 @@
 #include <string.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
+#include "userprog/syscall.h"
 #include "userprog/tss.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
@@ -56,14 +57,21 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  printf("Process begins\n");
+  //printf("Process begins\n");
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-
+  //printf("Load complete\n");
+  if (success) {
+    //printf("Load successful\n");
+      thread_current()->cp->load = LOAD_SUCCESS;
+  }
+  else{
+      thread_current()->cp->load = LOAD_FAIL;
+  }
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -92,29 +100,49 @@ int
 process_wait (tid_t child_tid) 
 {
   //while(1){} //just to debug, will remove 
-  int result = -1;
+  /*int result = -1;
   struct thread *t = thread_current ();
   struct thread *tchild = get_thread_from_tid(child_tid);
   struct thread *parent;
   struct list_elem *elem = NULL;
   struct dead_thread *d = NULL;
-
-  if(tchild == NULL)
-  	goto end;
+  printf("Process wait starts\n");
+  printf("child tid = %i\n", child_tid);
+  if(tchild == NULL){
+    printf("tchild is null\n");
+  	return result;
+  }
   
   parent = get_thread_from_tid(tchild->parent_tid);
 
-  
+  if( parent != t){
+    printf("parent tid = %i\n", tchild->parent_tid);
+  	return result;
+  }
 
-  if( parent != t)
-  	goto end;
-
+  printf("Waiting for child process to finish...\n");
   sema_down(&(tchild->sem));
+  printf("Child process finished\n");
   result = tchild->status;
-  return result;
-
-end:
-	return result;
+  return result;*/
+  struct child_process* cp = get_child_process(child_tid);
+  if (!cp)
+    {
+      return ERROR;
+    }
+  if (cp->wait)
+    {
+      return ERROR;
+    }
+  cp->wait = true;
+  while (!cp->exit)
+    {
+      //printf("waiting for exit\n");
+      barrier();
+    }
+  int status = cp->status;
+  remove_child_process(cp);
+  return status;
 }
 
 /* Free the current process's resources. */
@@ -123,6 +151,18 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  // Close all files opened by process
+  process_close_file(CLOSE_ALL);
+
+  // Free child list
+  remove_child_processes();
+
+  // Set exit value to true in case killed by the kernel
+  if (thread_alive(cur->parent_tid))
+    {
+      cur->cp->exit = true;
+    }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
