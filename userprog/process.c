@@ -15,6 +15,7 @@
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
@@ -108,8 +109,8 @@ process_wait (tid_t child_tid)
   if( parent != t)
   	goto end;
 
-  sema_down(tchild->sem);
-  result = tchild->thread_status;
+  sema_down(&(tchild->sem));
+  result = tchild->status;
   return result;
 
 end:
