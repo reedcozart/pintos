@@ -493,11 +493,13 @@ setup_stack (void **esp, const char* file_name)
               	temp = temp + strlen(toks[j]) + 1;
               }
               //hex_dump(temp, temp_ptr, 50, true);
-              temp_ptr--;
+              temp_ptr-= ((int)temp_ptr %4);
+              temp_ptr -=4;
               *temp_ptr = word_align;
 
-              temp_ptr -=4;
+              
               *temp_ptr = (char*)NULL;
+              temp_ptr-=4;
               j = i;
 
               while(j>=0){
