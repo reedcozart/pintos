@@ -32,6 +32,12 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  
+  char local_cpy[1024];
+  char* saveptr;
+  char* tok;
+  strlcpy(local_cpy, file_name, sizeof(local_cpy));
+  tok = strtok_r(local_cpy, " ", &saveptr);
 	
 	//printf("(args) begin\n");
   
@@ -43,7 +49,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
  
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (tok, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
