@@ -101,7 +101,6 @@ syscall_handler (struct intr_frame *f UNUSED)
 	case SYS_READ:
 	//printf("SYS_READ\n");
 		get_args(f, &args[0], 3);
-		args[1] = user_to_kernel_ptr((void*) args[1]); //causing page fault
 		f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
 		break;
 	case SYS_WRITE:
@@ -248,7 +247,7 @@ int read(int fd, void* buffer, unsigned size){
 	unsigned offset;
 	
 	// Error check the buffer pointer
-	if(checkMemorySpace((void*) buffer, size)) {
+	if(checkMemorySpace(buffer, size)) {
 
 		// If reading from stdin
 		if(fd == STDIN_FILENO) {
