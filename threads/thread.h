@@ -129,6 +129,8 @@ struct thread
     struct list child_threads;
 
     struct child_process* cp;
+
+    struct file* file;
   };
 
 /* If false (default), use round-robin scheduler.

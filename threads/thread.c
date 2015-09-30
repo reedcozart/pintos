@@ -211,6 +211,7 @@ thread_create (const char *name, int priority,
   t->parent_tid = thread_tid();
   struct child_process* cp = add_child_process(t->tid);
   t->cp = cp;
+  t->cp->status = -1;
   sema_init(&t->sem, 0);
   sema_init(&t->sem_load, 0);
   sema_init(&t->sem_read, 0);

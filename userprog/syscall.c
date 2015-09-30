@@ -138,7 +138,6 @@ void halt(void){
 void exit(int status){
   struct thread *t = thread_current ();
   t->cp->status = status;
-  printf("%s: exit(%d)\n", t->name, status);
   thread_exit ();
   NOT_REACHED ();
 

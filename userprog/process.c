@@ -174,12 +174,17 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  sema_up(&(cur->cp->sem_read));
-
-  // Set exit value to true in case killed by the kernel
   if (thread_alive(cur->parent_tid)) {
       cur->cp->exit = true;
   }
+
+  printf("%s: exit(%d)\n", cur->name, cur->cp->status);
+  file_allow_write(cur->file);
+  file_close (cur->file);
+  sema_up(&(cur->cp->sem_read));
+
+  // Set exit value to true in case killed by the kernel
+
 
   //printf("PROCESS WAITING TO EXIT\n");
   sema_down(&(cur->cp->sem_die));
@@ -191,8 +196,6 @@ process_exit (void)
 
   // Free child list
   remove_child_processes();
-
-
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -334,6 +337,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
     else{
     	//printf("Load worked\n");
+    	file_deny_write(file);
+    	t->file = file;
     }
 
   /* Read and verify executable header. */
@@ -408,6 +413,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
+
   /* Set up stack. */
   if (!setup_stack (esp, file_name))
     goto done;
@@ -419,7 +425,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  //file_close (file);
   return success;
 }
 
