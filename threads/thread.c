@@ -213,6 +213,9 @@ thread_create (const char *name, int priority,
   t->cp = cp;
   sema_init(&t->sem, 0);
   sema_init(&t->sem_load, 0);
+  sema_init(&t->sem_read, 0);
+  sema_init(&cp->sem_die, 0);
+  sema_init(&cp->sem_read, 0);
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -303,6 +306,8 @@ thread_exit (void)
   process_exit ();
   //printf("PROCESS EXITED\n");
 #endif
+
+
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us

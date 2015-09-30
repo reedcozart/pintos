@@ -114,7 +114,9 @@ struct thread
 
     struct semaphore sem;
     struct semaphore sem_load;
-#ifdef USERPROG
+    struct semaphore sem_read;
+
+    #ifdef USERPROG
     /* Owned by userprog/process.c. */
 		tid_t parent_tid;
     uint32_t *pagedir;                  /* Page directory. */

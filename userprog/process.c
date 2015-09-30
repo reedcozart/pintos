@@ -52,8 +52,6 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (tok, PRI_DEFAULT, start_process, fn_copy);
   t = get_thread_from_tid(tid);
-  
-  
 
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
@@ -62,8 +60,10 @@ process_execute (const char *file_name)
   sema_down(&(t->sem_load));
 
   if(t->load == LOAD_FAIL){
+    sema_up(&(t->sem_read));
   	return -1;
   }
+  sema_up(&(t->sem_read));
   return tid;
 }
 
@@ -93,6 +93,8 @@ start_process (void *file_name_)
       thread_current()->load = LOAD_FAIL;
   }
   sema_up(&t->sem_load);
+  //sema_down(&t->sem_die);
+  sema_down(&t->sem_read);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -155,14 +157,13 @@ process_wait (tid_t child_tid)
     {
       return ERROR;
     }
-  cp->wait = true;
-  while (!cp->exit)
-    {
-      //printf("waiting for exit\n");
-      barrier();
-    }
+  //cp->wait = true;
+  sema_down(&(cp->sem_read));
   int status = cp->status;
-  remove_child_process(cp);
+  //printf("Status: %i\n", status);
+  sema_up(&(cp->sem_die));
+  //printf("Child process removed\n");
+
   return status;
 }
 
@@ -173,20 +174,29 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  sema_up(&(cur->cp->sem_read));
+
+  // Set exit value to true in case killed by the kernel
+  if (thread_alive(cur->parent_tid)) {
+      cur->cp->exit = true;
+  }
+
+  //printf("PROCESS WAITING TO EXIT\n");
+  sema_down(&(cur->cp->sem_die));
+  remove_child_process(cur->cp);
+  //printf("PROCESS EXITING\n");
+
   // Close all files opened by process
   process_close_file(CLOSE_ALL);
 
   // Free child list
   remove_child_processes();
 
-  // Set exit value to true in case killed by the kernel
-  if (thread_alive(cur->parent_tid))
-    {
-      cur->cp->exit = true;
-    }
+
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+
   pd = cur->pagedir;
   if (pd != NULL) 
     {
