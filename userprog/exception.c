@@ -162,12 +162,12 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   
 
-  printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
+  //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
   if(!user)
     return;
 
-   if(fault_addr == (void*)NULL){
+   if(fault_addr == (void*)NULL || fault_addr == PHYS_BASE){ //fixes regression of userprog badread and badwrite tests.
     kill(f);
    }
 
@@ -187,7 +187,7 @@ page_fault (struct intr_frame *f)
     success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
 
     if(!success){
-      printf("!success, KILLING\n");
+      //printf("!success, KILLING\n");
       kill(f);
     }
 
