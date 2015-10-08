@@ -162,12 +162,18 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   
 
-//  printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
+  printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
+  if(!user)
+    return;
+
+   if(fault_addr == (void*)NULL){
+    kill(f);
+   }
 
   if(not_present){
     void* esp;
-    void* upage;
+    //void* upage;
     void* kpage;
     bool success;
 
@@ -175,7 +181,7 @@ page_fault (struct intr_frame *f)
 
     fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-    upage = esp;
+    //upage = esp;
 
 
     success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
