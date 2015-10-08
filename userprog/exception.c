@@ -7,7 +7,9 @@
 #include "threads/thread.h"
 #include "threads/palloc.h"
 #include "vm/page.h"
+#include "threads/vaddr.h"
 
+#define DEBUG 1
 
 
 /* Number of page faults processed. */
@@ -158,16 +160,10 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  //printf ("Page fault at %p: %s error %s page in %s context.\n",
-    //      fault_addr,
-      //    not_present ? "not present" : "rights violation",
-        //  write ? "writing" : "reading",
-//          user ? "user" : "kernel");
-  if(!user){
-    f->eip = f->eax;
-    f->eax = 0xffffffff;
-    return;
-  }
+  
+
+//  printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
+
 
   if(not_present){
     void* esp;
@@ -175,13 +171,17 @@ page_fault (struct intr_frame *f)
     void* kpage;
     bool success;
 
-    fault_addr = fault_addr - (void*)((int) fault_addr % PGSIZE); //page aligning the fault_addr
+    esp = f->esp;
+
+    fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
     upage = esp;
 
-    success = install_page(upage, kpage, 1); //grow stack by 1 page
+
+    success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
 
     if(!success){
+      printf("!success, KILLING\n");
       kill(f);
     }
 
