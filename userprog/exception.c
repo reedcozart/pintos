@@ -167,7 +167,7 @@ page_fault (struct intr_frame *f)
   if(!user)
     return;
 
-   if(fault_addr == (void*)NULL || fault_addr == PHYS_BASE){ //fixes regression of userprog badread and badwrite tests.
+   if(fault_addr == (void*)NULL || fault_addr == PHYS_BASE || fault_addr < (f->esp - 32) ){ //fixes regression of userprog badread and badwrite tests.
     kill(f);
    }
 
