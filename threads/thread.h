@@ -120,6 +120,7 @@ struct thread
     /* Owned by userprog/process.c. */
 		tid_t parent_tid;
     uint32_t *pagedir;                  /* Page directory. */
+    uint32_t *sup_pagedir;              /* Supplimental page directory*/
 #endif
 
     /* Owned by thread.c. */
