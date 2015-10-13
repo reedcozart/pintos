@@ -105,12 +105,17 @@ kill (struct intr_frame *f)
          here.)  Panic the kernel to make the point.  */
       intr_dump_frame (f);
       PANIC ("Kernel bug - unexpected interrupt in kernel"); 
+      /*REED: I commented the panic because we were failing tests from a page
+      fault in a kernel context. To fix this if (write && !user) kill(f) 
+      we need to catch this condition without panicing the kernel.
+      */
+      //thread_exit();
 
     default:
       /* Some other code segment?  Shouldn't happen.  Panic the
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
-             f->vec_no, intr_name (f->vec_no), f->cs);
+             //sf->vec_no, intr_name (f->vec_no), f->cs);
       thread_exit ();
     }
 }
@@ -164,8 +169,9 @@ page_fault (struct intr_frame *f)
 
   //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
-  if(!user)
-    return;
+  if(write && !user) //indicates a page fault in kernel context
+    //kill(f);
+    thread_exit();
 
    if(fault_addr == (void*)NULL || fault_addr == PHYS_BASE || fault_addr < (f->esp - 32) ){ //fixes regression of userprog badread and badwrite tests.
     kill(f);
@@ -192,6 +198,13 @@ page_fault (struct intr_frame *f)
     }
 
   }
+
+
+
+  /*
+  Page fault in the kernel context.
+  */
+ 
 
   return;
   //kill (f)
