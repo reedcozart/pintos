@@ -115,7 +115,7 @@ kill (struct intr_frame *f)
       /* Some other code segment?  Shouldn't happen.  Panic the
          kernel. */
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
-             //sf->vec_no, intr_name (f->vec_no), f->cs);
+             f->vec_no, intr_name (f->vec_no), f->cs);
       thread_exit ();
     }
 }
@@ -169,7 +169,7 @@ page_fault (struct intr_frame *f)
 
   //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
-  if(write && !user) //indicates a page fault in kernel context
+  if(!user) //indicates a page fault in kernel context
     //kill(f);
     thread_exit();
 
