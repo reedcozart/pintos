@@ -177,25 +177,44 @@ page_fault (struct intr_frame *f)
     kill(f);
    }
 
+  // If the page is not present in physical memory
   if(not_present){
     void* esp;
     //void* upage;
     void* kpage;
     bool success;
+    struct thread* t;
+    struct sup_pte* spte;
 
     esp = f->esp;
 
+    // Get the address of the actual page
     fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
-    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+    t = thread_current();
+    spte = get_pte(fault_addr);
+
+    kpage = frame_alloc(PAL_USER, fault_addr);
+    if(kpage == NULL) {
+      printf("Frame allocation failed");
+      return;
+    }
+
+    // Set the virtual page mapping to the new physical frame TODO needs to do writable
+    if(!pagedir_set_page(t->pagedir, fault_addr, kpage, true)) {
+      printf("Page mapping failed");
+      return;
+    }
+
+    //kpage = palloc_get_page(PAL_USER | PAL_ZERO);
     //upage = esp;
 
 
-    success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
+    /*success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
 
     if(!success){
       //printf("!success, KILLING\n");
       kill(f);
-    }
+    }*/
 
   }
 

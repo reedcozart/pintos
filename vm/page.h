@@ -10,6 +10,7 @@ struct sup_pte{
 	void* kaddr;
 	struct hash_elem elem;
 	bool swapped;
+	bool writable;
 };
 
 bool init_sup_pte(void* uaddr);
