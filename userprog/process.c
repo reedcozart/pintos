@@ -473,7 +473,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
   /* Disallow mapping page 0.
      Not only is it a bad idea to map page 0, but if we allowed
      it then user code that passed a null pointer to system calls
-     could quite likely panic the kernel by way of null pointer
+     could quite likely panicb  the kernel by way of null pointer
      assertions in memcpy(), etc. */
   if (phdr->p_vaddr < PGSIZE)
     return false;
@@ -515,6 +515,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
+      uint8_t *kpage = frame_allocate(PAL_USER, ) //TODO REPLAE ALL PALLOC CALLS WITH OUR FRAME CALLS!!!
       if (kpage == NULL)
         return false;
 

@@ -71,13 +71,13 @@ void* evict_frame(void* new_frame_uaddr){
 	struct thread *evicted_thread;
 	void* evicted_page;
 	void* evicted_uaddr;
-       struct sup_pte* evicted_sup_pte;
+    struct sup_pte* evicted_sup_pte;
 	bool evicted_is_dirty;
 
 	intr_disable();
 
 	/* time to evict a frame!*/
-	lock_aquire(&lock);
+	lock_acquire(&lock);
 	evicted_frame = choose_evict();
 	lock_release(&lock);
 

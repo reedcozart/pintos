@@ -2,6 +2,17 @@
 #include "vm/page.h"
 #include <bitmap.h>
 
+#include "userprog/exception.h"
+#include <inttypes.h>
+#include <stdio.h>
+#include "userprog/gdt.h"
+#include "userprog/process.h"
+#include "threads/interrupt.h"
+#include "threads/thread.h"
+#include "threads/palloc.h"
+#include "vm/page.h"
+#include "threads/vaddr.h"
+
 struct block* swap_block;
 static struct bitmap* swap_free;
 
@@ -27,7 +38,7 @@ void swap_read(int swap_page, const void* uaddr) {
 
 	// Read through enough blocks to read a full page into swap_block
 	for(i = 0; i < NUM_SECTORS_PER_PAGE; i++) {
-		block_read(swap_block, (swap_page * NUM_SECTORS_PER_PAGE) + i, uaddr + (i * BLOCK_SECTOR_SIZE);
+		block_read(swap_block, (swap_page * NUM_SECTORS_PER_PAGE) + i, uaddr + (i * BLOCK_SECTOR_SIZE));
 	}
 
 	bitmap_set(swap_free, swap_page, true);
@@ -39,7 +50,7 @@ void swap_write(const void* uaddr) {
 
 	// Write enough blocks for a full page into swap_block
 	for(i = 0; i < NUM_SECTORS_PER_PAGE; i++) {
-		block_write(swap_block, (swap_page * NUM_SECTORS_PER_PAGE) + i, uaddr + (i * BLOCK_SECTOR_SIZE);
+		block_write(swap_block, (swap_page * NUM_SECTORS_PER_PAGE) + i, uaddr + (i * BLOCK_SECTOR_SIZE));
 	}
 
 	bitmap_set(swap_free, swap_page, false);
@@ -47,5 +58,5 @@ void swap_write(const void* uaddr) {
 }
 
 void swap_remove(int swap_page) { //Put me in thread exit!
-	bitmap_set(swap_free. swap_page, true);
+	bitmap_set(swap_free, swap_page, true);
 }
