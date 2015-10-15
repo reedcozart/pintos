@@ -64,3 +64,60 @@ static bool add_frame(void* frame_addr, void* uaddr) {
 
 	return true;
 }
+
+void* evict_frame(void* new_frame_uaddr){
+	struct frame evicted_frame;
+	struct thread evicted_thread;
+	void* evicted_page;
+	void* evicted_uaddr;
+	struct spte evicted_spte;
+	bool evicted_is_dirty;
+
+	intr_disable();
+
+	/* time to evict a frame!*/
+	lock_aquire(&lock);
+	evicted_frame = choose_evict();
+	lock_release(&lock);
+
+	evicted_page = evicted_frame->uaddr;
+	evicted_thread = get_thread_from_tid(evicted_frame->tid);
+	evicted_spte = get_pte(page);
+	pagedir_clear_page(evicted_thread->pagedir, evicted_page);
+	evicted_is_dirty = pagedir_is_dirty(evicted_thread->pagedir, evicted_page);
+
+	if(evicted_is_dirty){
+		evicted_spte-> //INDICATE HERE THAT WE SWAPPED IT!
+		//WRITE TO SWAP AREA
+	}
+
+	evicted_frame->uaddr = new_frame_uaddr;
+	evicted_frame->tid = thread_current()->tid;
+	evicted_frame->done = false;
+	evicted_frame->count = 0;
+
+	intr_enable();
+	return evicted_frame->page;
+}
+
+struct frame* choose_evict(){
+	int smallest;
+	struct list_elem *e;
+  	struct frame *f;
+  	struct frame *frame;
+
+  	e = list_head(&frames_list);
+  	f = list_entry(e, struct frame, elem);
+
+  	smallest = f->count;
+  	while(e != list_tail((&frames_list))){
+  		if(f->done && smallest < f->count){
+  			smallest = f->count;
+  			frame = f; //we've found a more least recently used frame!
+  		}
+  		e = list_next(e); //look at next element in the list!
+  		f = list_entry(e, struct frame, elem);
+  	}
+  	return frame;
+
+ }
