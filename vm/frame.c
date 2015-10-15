@@ -87,8 +87,8 @@ void* evict_frame(void* new_frame_uaddr){
 	evicted_is_dirty = pagedir_is_dirty(evicted_thread->pagedir, evicted_page);
 
 	if(evicted_is_dirty){
-		evicted_spte-> //INDICATE HERE THAT WE SWAPPED IT!
-		//WRITE TO SWAP AREA
+		evicted_spte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
+		swap_write(evicted_page);
 	}
 
 	evicted_frame->uaddr = new_frame_uaddr;

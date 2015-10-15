@@ -46,6 +46,6 @@ void swap_write(const void* uaddr) {
 	return swap_page;
 }
 
-void swap_remove(int swap_page) {
+void swap_remove(int swap_page) { //Put me in thread exit!
 	bitmap_set(swap_free. swap_page, true);
 }

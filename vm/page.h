@@ -9,6 +9,7 @@ typedef struct{
 	void* uaddr;    
 	void* kaddr;
 	struct hash_elem elem;
+	bool swapped;
 }sup_pte;
 
 bool init_sup_pte(void* uaddr);
