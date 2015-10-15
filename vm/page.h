@@ -5,7 +5,7 @@
 
 #define PGSIZE 4096
 /*Supplimental pte structure*/
-typedef struct{
+typedef struct sup_pte{
 	void* uaddr;    
 	void* kaddr;
 	struct hash_elem elem;

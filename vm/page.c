@@ -25,6 +25,7 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 
 bool init_sup_pte(void* uaddr){
 	sup_pte *spte = (sup_pte*) malloc(sizeof(sup_pte));
+	spte->swapped = false;
 	if(sup_pte == NULL)
 		return false;
 	spte->uaddr = uaddr;

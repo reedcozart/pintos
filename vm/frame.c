@@ -9,6 +9,7 @@
 #include "vm/frame.h"
 #include "filesys/file.h"
 #include "threads/interrupt.h"
+#include "vm/page.h"
 
 static struct lock lock;
 
@@ -29,7 +30,7 @@ void* frame_allocate(enum palloc_flags flags, void* uaddr){
 
 	if(frame != NULL) {
 		// Successful adding of frame
-		add_frame(frame);
+		add_frame(frame, uaddr);
 	}
 	// When frame table is full, need to evict
 	else {
@@ -58,19 +59,19 @@ static bool add_frame(void* frame_addr, void* uaddr) {
 	frame->count = 0;
 
 	// Synchronize adding to the frame list
-	lock_acquire(lock);
+	lock_acquire(&lock);
 	list_push_back(&frames_list, &frame->elem);
-	lock_release(lock);
+	lock_release(&lock);
 
 	return true;
 }
 
 void* evict_frame(void* new_frame_uaddr){
-	struct frame evicted_frame;
-	struct thread evicted_thread;
+	struct frame *evicted_frame;
+	struct thread *evicted_thread;
 	void* evicted_page;
 	void* evicted_uaddr;
-	struct spte evicted_spte;
+	sup_pte* evicted_sup_pte;
 	bool evicted_is_dirty;
 
 	intr_disable();
@@ -82,12 +83,12 @@ void* evict_frame(void* new_frame_uaddr){
 
 	evicted_page = evicted_frame->uaddr;
 	evicted_thread = get_thread_from_tid(evicted_frame->tid);
-	evicted_spte = get_pte(page);
+	evicted_sup_pte = get_pte(evicted_page);
 	pagedir_clear_page(evicted_thread->pagedir, evicted_page);
 	evicted_is_dirty = pagedir_is_dirty(evicted_thread->pagedir, evicted_page);
 
 	if(evicted_is_dirty){
-		evicted_spte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
+		evicted_sup_pte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
 		swap_write(evicted_page);
 	}
 
@@ -123,14 +124,14 @@ struct frame* choose_evict(){
 
  void age_frames(int64_t timer_ticks){
   	struct thread *t;
- 	struct vm_frame *f;
+ 	struct frame *f;
  	struct list_elem *e;
   	uint32_t *pd;
   	const void *uaddr;
   	bool accessed;
 
   	if(timer_ticks % 100 == 0){ //don't want to age our frames all the time, too much overhead
-  		e = list_head(&vm_frames_list);
+  		e = list_head(&frames_list);
 	  	while(e != list_tail((&frames_list))){
 	  		f = list_entry(e, struct frame, elem);
 	  		t = get_thread_from_tid(f->tid);
@@ -139,7 +140,7 @@ struct frame* choose_evict(){
 	  			uaddr = f->uaddr;
 	  			accessed = pagedir_is_accessed(pd, uaddr);
 	  			f->count++;
-	  			pagedir_set_accessed(pd, uaddr);
+	  			pagedir_set_accessed(pd, uaddr, true);
 	  		}
 	  		e = list_next(e); //look at next element in the list!
 	  	}
