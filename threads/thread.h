@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "lib/kernel/hash.h"
+
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -120,7 +122,7 @@ struct thread
     /* Owned by userprog/process.c. */
 		tid_t parent_tid;
     uint32_t *pagedir;                  /* Page directory. */
-    uint32_t *sup_pagedir;              /* Supplimental page directory*/
+    struct hash sup_pagedir;              /* Supplimental page directory*/
 
 
     /* Owned by thread.c. */
