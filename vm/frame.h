@@ -13,3 +13,9 @@ struct frame{
 
 struct list frames_list;
 
+void* frame_allocate(enum palloc_flags flags, void* uaddr);
+void frame_init();
+static bool add_frame(void* frame_addr, void* uaddr);
+void* evict_frame(void* new_frame_uaddr);
+struct frame* choose_evict();
+void age_frames(int64_t timer_ticks);

@@ -119,5 +119,29 @@ struct frame* choose_evict(){
   		f = list_entry(e, struct frame, elem);
   	}
   	return frame;
+ }
 
+ void age_frames(int64_t timer_ticks){
+  	struct thread *t;
+ 	struct vm_frame *f;
+ 	struct list_elem *e;
+  	uint32_t *pd;
+  	const void *uaddr;
+  	bool accessed;
+
+  	if(timer_ticks % 100 == 0){ //don't want to age our frames all the time, too much overhead
+  		e = list_head(&vm_frames_list);
+	  	while(e != list_tail((&frames_list))){
+	  		f = list_entry(e, struct frame, elem);
+	  		t = get_thread_from_tid(f->tid);
+	  		if(t!= NULL){
+	  			pd = t->pagedir;
+	  			uaddr = f->uaddr;
+	  			accessed = pagedir_is_accessed(pd, uaddr);
+	  			f->count++;
+	  			pagedir_set_accessed(pd, uaddr);
+	  		}
+	  		e = list_next(e); //look at next element in the list!
+	  	}
+  	}
  }
