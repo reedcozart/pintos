@@ -6,6 +6,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/palloc.h"
+#include "vm/frame.h"
 #include "vm/page.h"
 #include "threads/vaddr.h"
 
@@ -189,11 +190,11 @@ page_fault (struct intr_frame *f)
     esp = f->esp;
 
     // Get the address of the actual page
-    fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
+    /*fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
     t = thread_current();
-    spte = get_pte(fault_addr);
+    spte = get_pte(fault_addr);*/
 
-    kpage = frame_alloc(PAL_USER, fault_addr);
+    /*kpage = frame_allocate(PAL_USER, fault_addr);
     if(kpage == NULL) {
       printf("Frame allocation failed");
       return;
@@ -203,18 +204,18 @@ page_fault (struct intr_frame *f)
     if(!pagedir_set_page(t->pagedir, fault_addr, kpage, true)) {
       printf("Page mapping failed");
       return;
-    }
+    }*/
 
-    //kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
     //upage = esp;
 
 
-    /*success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
+    success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
 
     if(!success){
       //printf("!success, KILLING\n");
       kill(f);
-    }*/
+    }
 
   }
 

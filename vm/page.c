@@ -7,7 +7,7 @@
 
 /* Returns a hash value for page p. */
 unsigned
-page_hash (const struct hash_elem *p_, void *aux UNUSED)
+page_hash (const struct hash_elem *p_, void *aux)
 {
   const struct sup_pte *p = hash_entry (p_, struct sup_pte, elem);
   return hash_bytes (&p->uaddr, sizeof p->uaddr);
@@ -16,7 +16,7 @@ page_hash (const struct hash_elem *p_, void *aux UNUSED)
 /* Returns true if page a precedes page b. */
 bool
 page_less (const struct hash_elem *a_, const struct hash_elem *b_,
-           void *aux UNUSED)
+           void *aux)
 {
   const struct sup_pte *a = hash_entry (a_, struct sup_pte, elem);
   const struct sup_pte *b = hash_entry (b_, struct sup_pte, elem);
@@ -24,16 +24,29 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
   return (a->uaddr < b->uaddr);
 }
 
-bool init_sup_pte(void* uaddr){
-	struct sup_pte *spte = (struct sup_pte*) malloc(sizeof(struct sup_pte));
+// Create a supplemental page table and also store executable details WITHIN FILESYSTEM
+bool init_sup_pte(void* uaddr, struct file* f, off_t offset, uint32_t read_bytes, uint32_t zero_bytes, bool writable){
 	struct thread* t = thread_current();
-	hash_init (&(t->sup_pagedir), page_hash, page_less, NULL); // initialize the hash supplimental page table
-	spte->swapped = false;
+
+	// Allocate the supplemental page table entry in memory
+	struct sup_pte *spte = (struct sup_pte*) malloc(sizeof(struct sup_pte));
+
+	// Cannot allocate memory, fail
 	if(spte == NULL)
 		return false;
+
+	// Fill in the dirty details
+	spte->file = f;
+	spte->type = SPTE_FS;
+	spte->offset = offset;
+	spte->read_bytes = read_bytes;
+	spte->zero_bytes = zero_bytes;
+	spte->swapped = false;
 	spte->uaddr = uaddr;
+	spte->writable = writable;
 	return (hash_insert(&(t->sup_pagedir), &(spte->elem)) == NULL);	
 }
+
 /*
       map kaddr to uaddr
 */

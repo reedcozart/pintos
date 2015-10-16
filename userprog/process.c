@@ -19,6 +19,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -324,10 +325,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
 
   // Initialize the supplemental page table
-  //hash_init (&(t->sup_pagedir), page_hash, page_less, NULL); // initialize the hash supplimental page table
+  hash_init (&(t->sup_pagedir), page_hash, page_less, NULL);
 
   process_activate (); //
-  //printf("INSIDE LOAD");
+  printf("INSIDE LOAD\n");
   /* Open executable file. */
 
   strlcpy(local_cpy, file_name, sizeof(local_cpy));
@@ -340,7 +341,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
     else{
-    	//printf("Load worked\n");
+    	printf("Load worked\n");
     	file_deny_write(file);
     	t->file = file;
     }
@@ -358,6 +359,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
+    printf("About to read program headers\n");
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -407,9 +409,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
+                printf("About to start load segment\n");
               if (!load_segment (file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
-                goto done;
+                printf("Load segment fails\n");
+                //goto done;
             }
           else
             goto done;
@@ -417,7 +421,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
-
+    printf("About to setup stack\n");
   /* Set up stack. */
   if (!setup_stack (esp, file_name))
     goto done;
@@ -496,7 +500,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
-static bool
+bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
@@ -505,6 +509,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (ofs % PGSIZE == 0);
 
   file_seek (file, ofs);
+
+  printf("Creating supplemental page table\n");
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.
@@ -514,30 +520,34 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      uint8_t *kpage = frame_allocate(PAL_USER, ) //TODO REPLAE ALL PALLOC CALLS WITH OUR FRAME CALLS!!!
-      if (kpage == NULL)
-        return false;
+      //uint8_t *kpage = palloc_get_page (PAL_USER);
 
       /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      if(!init_sup_pte(upage, file, ofs, read_bytes, zero_bytes, writable)) {
+        return false;
+      }
+
+      /*if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
           return false; 
         }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      memset (kpage + page_read_bytes, 0, page_zero_bytes);*/
 
       /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
+      /*if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
           return false; 
-        }
+        }*/
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      printf("read_bytes = %d ", read_bytes);
+      printf("zero_bytes = %d ", zero_bytes);
+      printf("upage = %p\n", upage);
     }
   return true;
 }
