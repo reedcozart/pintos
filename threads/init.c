@@ -22,6 +22,7 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#include "vm/frame.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -126,7 +127,10 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
-
+#ifdef VM
+  /*Initialize supplimental page table and frame table*/
+ frame_init(); 
+#endif
   printf ("Boot complete.\n");
   
   /* Run actions specified on kernel command line. */
