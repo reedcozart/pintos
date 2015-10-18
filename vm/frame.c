@@ -12,6 +12,7 @@
 #include "vm/page.h"
 
 static struct lock lock;
+static struct frame* get_frame(void *page);
 
 void frame_init(){
 	lock_init(&lock);
@@ -64,6 +65,13 @@ static bool add_frame(void* frame_addr, void* uaddr) {
 	lock_release(&lock);
 
 	return true;
+
+}
+
+void frame_set_done(void *kpage, bool value){
+	struct frame* f;
+	f = get_frame(kpage);
+	f->done = value;
 }
 
 void* evict_frame(void* new_frame_uaddr){
@@ -146,3 +154,43 @@ struct frame* choose_evict(){
 	  	}
   	}
  }
+/*return a frame mapped to a page*/
+static struct frame* get_frame(void *page){
+	struct frame* f;
+	struct list_elem *e;
+	lock_acquire(&lock);
+	e = list_head(&frames_list);
+        f = list_entry(e, struct frame, elem);
+
+        while(e != list_tail((&frames_list))){
+                if(f->page == page){
+                       break;
+                }
+                e = list_next(e); //look at next element in the list!
+                f = list_entry(e, struct frame, elem);
+        }
+	lock_release(&lock);
+	return f;
+}
+
+void frame_free (void *frame)
+{
+  struct list_elem *e;
+  
+  for (e = list_begin(&frames_list); e != list_end(&frames_list);
+       e = list_next(e))
+    {
+      struct frame *f = list_entry(e, struct frame, elem);
+      if (f->page == frame)
+	{
+	  list_remove(e);
+	  free(f);
+	  palloc_free_page(frame);
+	  break;
+	}
+    }
+}
+
+
+
+

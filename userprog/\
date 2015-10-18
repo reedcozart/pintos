@@ -552,7 +552,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       printf("zero_bytes = %d ", zero_bytes);
       printf("upage = %p\n", upage);
     }
-
   return true;
 }
 
@@ -589,8 +588,8 @@ setup_stack (void **esp, const char* file_name)
   int j;
   char* argv_addr;
 
-  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  kpage = frame_allocate(PAL_USER | PAL_ZERO, ((uint8_t *) PHYS_BASE) - PGSIZE);
+  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  //kpage = frame_allocate(PAL_USER | PAL_ZERO);
   if(kpage != NULL){
 		frame_set_done(kpage, true);
 	}

@@ -3,7 +3,7 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-
+#include "threads/palloc.h"
 
 /* Returns a hash value for page p. */
 unsigned
@@ -42,10 +42,27 @@ bool init_sup_pte(void* uaddr, struct file* f, off_t offset, uint32_t read_bytes
 	spte->read_bytes = read_bytes;
 	spte->zero_bytes = zero_bytes;
 	spte->swapped = false;
+	spte->loadded = false;
 	spte->uaddr = uaddr;
 	spte->writable = writable;
 	return (hash_insert(&(t->sup_pagedir), &(spte->elem)) == NULL);	
 }
+
+bool zero_sup_pte(void *uaddr, bool writable) {
+  struct thread *t = thread_current();
+
+  struct sup_pte *spte;
+  spte = malloc(sizeof(struct sup_pte));
+  if(spte == NULL) { return false; }
+
+  spte->uaddr = uaddr;
+  spte->type = SPTE_ZERO;
+  spte->writable = writable;
+
+  return hash_insert(&t->sup_pagedir, &(spte->elem)) == NULL;
+}
+
+
 
 /*
       map kaddr to uaddr
@@ -99,5 +116,38 @@ void free_spte(void* uaddr){
 	hash_delete(&(t->sup_pagedir), &(spte->elem));
 	free(spte);
 }
+/*
+	load from file to a page i.e for starting programs
+*/
+bool load_page_file (struct sup_pte *spte)
+{
+  enum palloc_flags flags = PAL_USER;
+  if (spte->read_bytes == 0){
+      flags |= PAL_ZERO;
+    }
+  uint8_t *frame = frame_allocate(flags, spte);
+  if (!frame){
+      return false;
+    }
+  if (spte->read_bytes > 0){
+      if (file_read_at(spte->file, frame, spte->read_bytes, spte->offset) != (int) spte->read_bytes){
+	  frame_free(frame);
+	  return false;
+	}
+      memset(frame + spte->read_bytes, 0, spte->zero_bytes);
+    }
+
+  if (!pagedir_set_page((thread_current())->pagedir, spte->uaddr, frame, spte->writable)){
+      frame_free(frame);
+      return false;
+    }
+  frame_set_done(frame, true);
+  pagedir_set_dirty((thread_current())->pagedir, spte->uaddr, false);
+
+  spte->loadded = true;  
+  return true;
+}
+
+
 
 

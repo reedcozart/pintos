@@ -22,7 +22,7 @@ struct sup_pte {
 	bool swapped;
 	bool writable;
 	enum spt_type type;
-
+	bool loadded;
 	// Details about the executable
 	struct file* file;
 	off_t offset;
@@ -41,5 +41,8 @@ bool set_kaddr(void* uaddr, void* kaddr);
 
 struct sup_pte* get_pte(void* uaddr);
 
+bool zero_sup_pte(void *uaddr, bool writable);
+
+bool load_page_file (struct sup_pte *spte);
 
 #endif //_Page_h_

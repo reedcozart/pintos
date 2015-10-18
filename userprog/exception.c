@@ -189,20 +189,38 @@ page_fault (struct intr_frame *f)
 
     esp = f->esp;
     // Get the address of the actual page
-    fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
-    t = thread_current();
-   // spte = get_pte(fault_addr);
-   // if(spte == NULL) kill(f);
-    kpage = frame_allocate(PAL_USER, fault_addr);
-    if(kpage == NULL) {
-      printf("Frame allocation failed");
-      return;
-    }
+   // fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
+   fault_addr = fault_addr - (void *)(((int)fault_addr) % PGSIZE);
 
+    t = thread_current();
+    spte = get_pte(fault_addr);
+    //if(spte == NULL) kill(f);
+  //  kpage = frame_allocate(PAL_USER, fault_addr);
+  //  if(kpage == NULL) {
+  //    printf("Frame allocation failed");
+  //    return;
+  //  }
+   // pagedir_clear_page (t->pagedir, spte->uaddr);
     // Set the virtual page mapping to the new physical frame TODO needs to do writable
-    if(!pagedir_set_page(t->pagedir, fault_addr, kpage, true)) {
+ /*   if(!pagedir_set_page(t->pagedir, fault_addr, kpage, true)) {
       printf("Page mapping failed");
       return;
+    }
+*/
+   if(spte != NULL){
+     switch(spte->type) {
+        case SPTE_FS: load_page_file(spte); break;
+        case SPTE_MMAP: break;
+        case SPTE_SWAP: break;
+        case SPTE_ZERO: break;
+          memset(fault_addr, 0, PGSIZE);
+          break;
+      } 	
+    // frame set done
+     frame_set_done(kpage, true);
+     pagedir_set_dirty(t->pagedir, fault_addr, false);
+    }else if(1){
+		// stack growth
     }
     //kpage = palloc_get_page(PAL_USER | PAL_ZERO);
     //upage = esp;
