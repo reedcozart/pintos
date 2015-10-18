@@ -410,8 +410,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
                 printf("About to start load segment\n");
-              if (!load_segment (file, file_page, (void *) mem_page,
-                                 read_bytes, zero_bytes, writable))
+              if (!load_segment (file, file_page, (void *) mem_page, read_bytes, zero_bytes, writable))
                 printf("Load segment fails\n");
                 //goto done;
             }
