@@ -167,17 +167,17 @@ page_fault (struct intr_frame *f)
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
   
-
+  //printf("I demand a page \n");
   //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
   if(!user) //indicates a page fault in kernel context
     //kill(f);
     thread_exit();
-
+/*
    if(fault_addr == (void*)NULL || fault_addr == PHYS_BASE || fault_addr < (f->esp - 32) ){ //fixes regression of userprog badread and badwrite tests.
     kill(f);
    }
-
+*/
   // If the page is not present in physical memory
   if(not_present){
     void* esp;
@@ -188,13 +188,12 @@ page_fault (struct intr_frame *f)
     struct sup_pte* spte;
 
     esp = f->esp;
-
     // Get the address of the actual page
-    /*fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
+    fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
     t = thread_current();
-    spte = get_pte(fault_addr);*/
-
-    /*kpage = frame_allocate(PAL_USER, fault_addr);
+   // spte = get_pte(fault_addr);
+   // if(spte == NULL) kill(f);
+    kpage = frame_allocate(PAL_USER, fault_addr);
     if(kpage == NULL) {
       printf("Frame allocation failed");
       return;
@@ -204,19 +203,11 @@ page_fault (struct intr_frame *f)
     if(!pagedir_set_page(t->pagedir, fault_addr, kpage, true)) {
       printf("Page mapping failed");
       return;
-    }*/
-
-    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-    //upage = esp;
-
-
-    success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
-
-    if(!success){
-      //printf("!success, KILLING\n");
-      kill(f);
     }
-
+    //kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+    //upage = esp;
+    //kpage = frame_allocate(PAL_USER, fault_addr);
+   // success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
   }
 
 
