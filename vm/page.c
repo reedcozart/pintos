@@ -134,9 +134,9 @@ bool load_page_file (struct sup_pte *spte)
 	  frame_free(frame);
 	  return false;
 	}
-      memset(frame + spte->read_bytes, 0, spte->zero_bytes);
+     // memset(frame + spte->read_bytes, 0, spte->zero_bytes);
     }
-
+    memset(frame + spte->read_bytes, 0, spte->zero_bytes);
   if (!pagedir_set_page((thread_current())->pagedir, spte->uaddr, frame, spte->writable)){
       frame_free(frame);
       return false;

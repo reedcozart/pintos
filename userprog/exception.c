@@ -194,7 +194,8 @@ page_fault (struct intr_frame *f)
 
     t = thread_current();
     spte = get_pte(fault_addr);
-    //if(spte == NULL) kill(f);
+    if(spte == NULL) 
+	kill(f);
   //  kpage = frame_allocate(PAL_USER, fault_addr);
   //  if(kpage == NULL) {
   //    printf("Frame allocation failed");
@@ -217,10 +218,8 @@ page_fault (struct intr_frame *f)
           break;
       } 	
     // frame set done
-     frame_set_done(kpage, true);
+    // frame_set_done(kpage, true);
      pagedir_set_dirty(t->pagedir, fault_addr, false);
-    }else if(1){
-		// stack growth
     }
     //kpage = palloc_get_page(PAL_USER | PAL_ZERO);
     //upage = esp;

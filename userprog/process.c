@@ -526,7 +526,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       //uint8_t *kpage = palloc_get_page (PAL_USER);
      // uint8_t *kpage = frame_allocate(PAL_USER);
       /* Load this page. */
-      if(!init_sup_pte(upage, file, ofs, read_bytes, zero_bytes, writable)) {
+      if(!init_sup_pte(upage, file, ofs, page_read_bytes, page_zero_bytes, writable)) {
         return false;
       }
 
@@ -593,7 +593,7 @@ setup_stack (void **esp, const char* file_name)
   kpage = frame_allocate(PAL_USER | PAL_ZERO, ((uint8_t *) PHYS_BASE) - PGSIZE);
   if(kpage != NULL){
 		frame_set_done(kpage, true);
-	}
+  }
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
