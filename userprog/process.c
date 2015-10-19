@@ -24,6 +24,8 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+static struct semaphore sem_load;
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -32,40 +34,66 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
+  char *fn_copy2;
   tid_t tid;
   struct thread* t;
   
   char local_cpy[1024];
   char* saveptr;
   char* tok;
-  strlcpy(local_cpy, file_name, sizeof(local_cpy));
-  tok = strtok_r(local_cpy, " ", &saveptr);
+  //strlcpy(local_cpy, file_name, sizeof(local_cpy));
 	
 	//printf("(args) begin\n");
   
 	/* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
- fn_copy = palloc_get_page (0);
- // fn_copy = frame_allocate(0);
+  fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+
+  /* Make a copy of FILE_NAME.
+     Otherwise there's a race between the caller and load(). */
+  fn_copy2 = palloc_get_page (0);
+  if (fn_copy2 == NULL)
+    return TID_ERROR;
+  strlcpy (fn_copy2, file_name, PGSIZE);
+
+  tok = strtok_r(fn_copy2, " ", &saveptr);
  
+   // Synchronization for thread creation
+  sema_init(&sem_load, 1);
+  sema_down(&sem_load);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (tok, PRI_DEFAULT, start_process, fn_copy);
-  t = get_thread_from_tid(tid);
 
+  sema_down(&sem_load);
+  sema_up(&sem_load);
+
+  t = get_thread_from_tid(tid);
+  thread_unblock(t);
+
+  if(t->load == LOAD_FAIL){
+  	return -1;
+  }
+
+  // Open the file process
+  printf("Opening the file process now\n");
+  struct file* f = filesys_open(tok);
+  file_deny_write(f);
+  if(f == NULL) {
+    printf("Opening file failed\n");
+    return -1;
+  }
+
+  // Free memory
+  palloc_free_page(fn_copy2);
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
     return -1;
-	}
-  sema_down(&(t->sem_load));
+  };
 
-  if(t->load == LOAD_FAIL){
-    sema_up(&(t->sem_read));
-  	return -1;
-  }
-  sema_up(&(t->sem_read));
   return tid;
 }
 
@@ -78,7 +106,7 @@ start_process (void *file_name_)
   struct intr_frame if_;
   struct thread* t;
   bool success;
-  //printf("Process begins\n");
+
   /* Initialize interrupt frame and load executable. */
   t = thread_current();
   memset (&if_, 0, sizeof if_);
@@ -86,22 +114,29 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  //printf("Load complete\n");
+  printf("Load complete\n");
   if (success) {
-    //printf("Load successful\n");
-      thread_current()->load = LOAD_SUCCESS;
+    printf("Load successful\n");
+    thread_current()->load = LOAD_SUCCESS;
   }
   else{
-      thread_current()->load = LOAD_FAIL;
+    thread_current()->load = LOAD_FAIL;
   }
-  sema_up(&t->sem_load);
-  //sema_down(&t->sem_die);
-  sema_down(&t->sem_read);
+
+  sema_up(&sem_load);
+  intr_disable();
+  thread_block();
+  intr_enable();
+  //sema_down(&t->sem_read);
   /* If load failed, quit. */
+
+  palloc_free_page(0);
+
   palloc_free_page (file_name);
 
-  if (!success) 
+  if (!success) {
     thread_exit ();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -523,9 +558,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      //uint8_t *kpage = palloc_get_page (PAL_USER);
-     // uint8_t *kpage = frame_allocate(PAL_USER);
       /* Load this page. */
       if(!init_sup_pte(upage, file, ofs, page_read_bytes, page_zero_bytes, writable)) {
         return false;
@@ -549,9 +581,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
-      printf("read_bytes = %d ", read_bytes);
-      printf("zero_bytes = %d ", zero_bytes);
-      printf("upage = %p\n", upage);
+      //printf("read_bytes = %d ", read_bytes);
+      //printf("zero_bytes = %d ", zero_bytes);
+      //printf("upage = %p\n", upage);
     }
 
   return true;

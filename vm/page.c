@@ -82,9 +82,10 @@ bool set_kaddr(void* uaddr, void* kaddr){
 */
 struct sup_pte* get_pte(void* uaddr){
 	struct sup_pte pte;
-	pte.uaddr = uaddr;
 	struct hash_elem *e;
-        struct thread* t = thread_current();
+    struct thread* t = thread_current();
+
+	pte.uaddr = uaddr;
 	e = hash_find(&(t->sup_pagedir), &(pte.elem));
 	if(e == NULL)
 		return e;
@@ -130,17 +131,17 @@ bool load_page_file (struct sup_pte *spte)
       return false;
     }
   if (spte->read_bytes > 0){
-      if (file_read_at(spte->file, frame, spte->read_bytes, spte->offset) != (int) spte->read_bytes){
+    if (file_read_at(spte->file, frame, spte->read_bytes, spte->offset) != (int) spte->read_bytes){
 	  frame_free(frame);
 	  return false;
 	}
      // memset(frame + spte->read_bytes, 0, spte->zero_bytes);
-    }
-    memset(frame + spte->read_bytes, 0, spte->zero_bytes);
+  }
+  memset(frame + spte->read_bytes, 0, spte->zero_bytes);
   if (!pagedir_set_page((thread_current())->pagedir, spte->uaddr, frame, spte->writable)){
       frame_free(frame);
       return false;
-    }
+  }
   frame_set_done(frame, true);
   pagedir_set_dirty((thread_current())->pagedir, spte->uaddr, false);
 

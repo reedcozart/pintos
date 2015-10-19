@@ -1,14 +1,14 @@
-#include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/exception.h"
 #include "userprog/process.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/palloc.h"
+#include "threads/vaddr.h"
 #include "vm/frame.h"
 #include "vm/page.h"
-#include "threads/vaddr.h"
 
 #define DEBUG 1
 
@@ -148,8 +148,8 @@ page_fault (struct intr_frame *f)
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
-
-	//printf("%p\n", fault_addr);
+  printf("Page fault\n");
+	printf("Fault address: %p\n", fault_addr);
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -168,16 +168,18 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   
   //printf("I demand a page \n");
-  //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
+  printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
   if(!user) //indicates a page fault in kernel context
     //kill(f);
-    thread_exit();
-/*
-   if(fault_addr == (void*)NULL || fault_addr == PHYS_BASE || fault_addr < (f->esp - 32) ){ //fixes regression of userprog badread and badwrite tests.
+     thread_exit();
+
+   if(fault_addr == 0) {
+    printf("Fault address is zero\n");
     kill(f);
+    return;
    }
-*/
+
   // If the page is not present in physical memory
   if(not_present){
     void* esp;
@@ -189,52 +191,106 @@ page_fault (struct intr_frame *f)
 
     esp = f->esp;
     // Get the address of the actual page
-   // fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
-   fault_addr = fault_addr - (void *)(((int)fault_addr) % PGSIZE);
+    // fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
+    fault_addr = fault_addr - (void *)(((int)fault_addr) % PGSIZE);
 
     t = thread_current();
+
+    // Obtain the page table entry for the requested page
     spte = get_pte(fault_addr);
-    if(spte == NULL) 
-	kill(f);
-  //  kpage = frame_allocate(PAL_USER, fault_addr);
-  //  if(kpage == NULL) {
-  //    printf("Frame allocation failed");
-  //    return;
-  //  }
-   // pagedir_clear_page (t->pagedir, spte->uaddr);
-    // Set the virtual page mapping to the new physical frame TODO needs to do writable
- /*   if(!pagedir_set_page(t->pagedir, fault_addr, kpage, true)) {
+
+    if(spte == NULL) {
+      printf("Obtaining supplemental page table entry failed.\n");
+      printf("Fault address: %p", fault_addr);
+      kill(f);
+      return;
+    }
+
+    // Allocate the frame for  the requested virtual address
+    kpage = frame_allocate(PAL_USER, fault_addr);
+    if(kpage == NULL) {
+      printf("Frame allocation failed.\n");
+      kill(f);
+      return;
+    }
+
+    // Set the virtual page mapping to the new physical frame
+    if(!pagedir_set_page(t->pagedir, fault_addr, kpage, spte->writable)) {
       printf("Page mapping failed");
       return;
     }
-*/
-   if(spte != NULL){
-     switch(spte->type) {
-        case SPTE_FS: load_page_file(spte); break;
-        case SPTE_MMAP: break;
-        case SPTE_SWAP: break;
-        case SPTE_ZERO: break;
-          memset(fault_addr, 0, PGSIZE);
-          break;
-      } 	
-    // frame set done
-    // frame_set_done(kpage, true);
-     pagedir_set_dirty(t->pagedir, fault_addr, false);
+
+   // pagedir_clear_page (t->pagedir, spte->uaddr);
+
+    switch(spte->type) {
+      case SPTE_FS: //load_page_file(spte); break;
+        if (spte->read_bytes > 0){
+          if (file_read_at(spte->file, kpage, spte->read_bytes, spte->offset) != (int) spte->read_bytes){
+            printf("Error loading file into memory");
+            return;
+          }
+        }
+
+        // Zero pad the rest of the page
+        memset(kpage + spte->read_bytes, 0, spte->zero_bytes);
+        break;
+      case SPTE_MMAP: break;
+      case SPTE_SWAP: break;
+      case SPTE_ZERO: break;
+        memset(fault_addr, 0, PGSIZE);
+        break;
     }
+
+    frame_set_done(kpage, true);
+    pagedir_set_dirty(t->pagedir, fault_addr, false);
+  }
+
+  // Handle stack growth
+  else if (stack_heuristic(f, fault_addr)) {
+
+    printf("Hits else statement\n");
+    /*void* esp;
+    void* upage;
+    void* kpage;
+
+    // Get the user program's stack pointer
+    if(user) {
+      esp = f->esp;
+    }
+    else {
+      esp = thread_current()->stack;
+    }
+
+    // If we got invalid access, make sure it's not the stack
+    if(esp - 4 == fault_addr || esp - 32 == fault_addr || !user) {
+      // Check to make sure the stack isn't too big
+
+      upage = esp;
+      kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
+      if(kpage == NULL) {
+        printf("Frame allocation has failed\n");
+        return;
+      }
+      pagedir_set_page(thread_current()->pagedir, upage, kpage, true);
+      frame_set_done(kpage, true);
+      return;
+    }*/
+
+  }
+
+  // Not stack growth, it is present, it is user.
+  kill(f);
+
+		// stack growth
     //kpage = palloc_get_page(PAL_USER | PAL_ZERO);
     //upage = esp;
     //kpage = frame_allocate(PAL_USER, fault_addr);
    // success = install_page(fault_addr, kpage, 1); //grow stack by 1 page
-  }
-
 
 
   /*
   Page fault in the kernel context.
   */
  
-
-  return;
   //kill (f)
-};
-
+}
