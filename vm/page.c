@@ -88,8 +88,10 @@ struct sup_pte* get_pte(void* uaddr){
 
 	pte.uaddr = uaddr;
 	e = hash_find(&(t->sup_pagedir), &(pte.elem));
-	if(e == NULL)
+	if(e == NULL) {
+		//printf("Page table entry null at %p\n", uaddr);
 		return e;
+	}
 	else
 		return hash_entry(e, struct sup_pte, elem);
 }

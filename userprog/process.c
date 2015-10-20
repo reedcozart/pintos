@@ -42,8 +42,6 @@ process_execute (const char *file_name)
   char* saveptr;
   char* tok;
   //strlcpy(local_cpy, file_name, sizeof(local_cpy));
-	
-	//printf("(args) begin\n");
   
 	/* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -333,7 +331,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp,const char* cmd_line);
+static bool setup_stack (void **esp, const char* file_name);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -352,7 +350,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-  char local_cpy[1024];
+  //char local_cpy[1024];
   char* saveptr;
   char* tok;
 
@@ -368,20 +366,25 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //printf("INSIDE LOAD\n");
 
   /* Open executable file. */
-  strlcpy(local_cpy, file_name, sizeof(local_cpy));
+  char* fn_copy;
+  fn_copy = palloc_get_page(0);
+  if(fn_copy == NULL) {
+    return -1;
+  }
+  strlcpy(fn_copy, file_name, PGSIZE);
   //printf("FILE NAME: %s", file_name);
-  tok = strtok_r(local_cpy, " ", &saveptr);
+  tok = strtok_r(fn_copy, " ", &saveptr);
   file = filesys_open (tok);
-  if (file == NULL) 
-    {
-      printf ("load: %s: open failed\n", file_name);
-      goto done; 
-    }
-    else{
-    	//printf("Load worked\n");
-    	//file_deny_write(file);
-    	t->file = file;
-    }
+  if (file == NULL) {
+    printf ("load: %s: open failed\n", file_name);
+    goto done; 
+  }
+  else{
+    //printf("Load worked\n");
+    //file_deny_write(file);
+    t->file = file;
+  }
+  palloc_free_page(fn_copy);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -460,20 +463,21 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
-    //printf("About to setup stack\n");
-  /* Set up stack. */
+  //printf("About to setup stack\n");
+  /* Initialize stack. */
   if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
-  *eip = (void (*) (void)) ehdr.e_entry;
+  *eip = (void (*)(void)) ehdr.e_entry;
 
   success = true;
-  //printf("done load \n");
- done:
-  /* We arrive here whether the load is successful or not. */
-  //file_close (file);
-  return success;
+  //printf("Stack setup successful\n");
+
+  done:
+    /* We arrive here whether the load is successful or not. */
+    file_close(file);
+    return success;
 }
 
 /* load() helpers. */
@@ -616,23 +620,34 @@ setup_stack (void **esp, const char* file_name)
   char** bottom;
   char* temp;
 
-
   char* toks[100] = {};
   char* stack_toks[100] = {};
   int i = 0;
   int j;
   char* argv_addr;
 
-  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  //printf("Stack setting up\n");
-  kpage = frame_allocate(PAL_USER | PAL_ZERO, ((uint8_t *) PHYS_BASE) - PGSIZE);
-  //printf("Stack page pointer: %p\n", kpage);
-  if(kpage != NULL){
+  //uint8_t* kpage;
+  uint8_t* upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  //bool success = false;
+
+  // Creates a minimal stack by mapping a zeroes page at the top of user memory
+  kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
+  /*if(kpage != NULL){
+    success = install_page(upage, kpage, true);
 		frame_set_done(kpage, true);
+    if(success) {
+      *esp = PHYS_BASE;
+    }
+    else {
+      frame_free(kpage);
+    }
   }
+
+  return success;*/
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      frame_set_done(kpage, true);
+      success = install_page (upage, kpage, true);
       if (success){
               //*esp = PHYS_BASE;
               /* setup temporary pointer*/
@@ -674,57 +689,6 @@ setup_stack (void **esp, const char* file_name)
               *temp_ptr = i + 1; //argc
               temp_ptr-=4;
               *temp_ptr = (void*)NULL;
-
-
-
-              /* set temp_ptr to the spot*/
-              //temp_ptr = temp_ptr - strlen(file_name) - 1;//Not sure if we need the -1
-              //strlcpy(temp_ptr, file_name, filenamesize + 1); //copy into memory
-              //printf("DEBUG: %s",temp_ptr);
-              //printf("\n");
-
-             
-
-
-               // printf("%d : %d", strlen(temp_ptr), strlen(file_name));
-             // printf(temp_ptr);
-             // printf(file_name);
-              // strcpy(temp_ptr, file_name);
-
-//              token = strtok_r(temp_ptr, " ", &saveptr); //do first tokenization
-//
- //             temp_ptr--; // go down one, push word_align
- //             *temp_ptr = word_align;/
-
-              
-   //           top = temp_ptr;
-    //          while(token != NULL){
-     //                 *temp_ptr = token;
-      //                token = strtok_r(NULL, " ", &saveptr);
-       //               temp_ptr-=4;
-        //              argc++;
-         //     } 
-//              *temp_ptr = (char*)NULL;
- //             bottom = temp_ptr;
-  //            argv = bottom;
-   //           temp_ptr-=4;/
-
-              /*reverse the pointers for the argv[0], argv[1], etc*/
-            //  hex_dump (temp_ptr, temp_ptr, 100, true);
-             // while(bottom < top){
-              //        temp = *bottom;
-               //       *bottom = *top;
-                //      *top = temp;
-                 //     bottom+=4;
-                  //    top-=4;        
-//              }
- //             *temp_ptr = argv; 
-  //            temp_ptr-=4;
-   //           *temp_ptr = argc;
-     //         temp_ptr-=4;
-      //        *temp_ptr = (void*)NULL;
-       //       hex_dump (temp_ptr, temp_ptr, 100, true);
-        //      printf(argv[0]);
               
       }
       else

@@ -169,11 +169,11 @@ page_fault (struct intr_frame *f)
   //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
   if(!user) //indicates a page fault in kernel context
-    //kill(f);
-     thread_exit();
+    kill(f);
+    //thread_exit();
 
    if(fault_addr == 0) {
-    printf("Fault address is zero\n");
+    //printf("Fault address is zero\n");
     kill(f);
     return;
    }
@@ -181,16 +181,20 @@ page_fault (struct intr_frame *f)
   // If the page is not present in physical memory
   if(not_present){
     void* esp;
-    //void* upage;
+    void* upage;
     void* kpage;
     bool success;
     struct thread* t;
     struct sup_pte* spte;
 
     esp = f->esp;
+
+    //printf("esp: %p fault_addr: %p\n", esp, fault_addr);
+    //printf("esp + 4 bytes: %p\n", esp + 1);
+    //printf("esp + 32 bytes: %p\n", esp + 8);
+
     // Get the address of the actual page
-    // fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
-    fault_addr = fault_addr - (void *)(((int)fault_addr) % PGSIZE);
+    fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
 
     t = thread_current();
 
@@ -198,9 +202,27 @@ page_fault (struct intr_frame *f)
     spte = get_pte(fault_addr);
 
     if(spte == NULL) {
-      printf("Obtaining supplemental page table entry failed.\n");
-      printf("Fault address: %p", fault_addr);
-      kill(f);
+      //printf("Obtaining supplemental page table entry failed.\n");
+      //printf("Fault address: %p\n", fault_addr);
+
+      // Handle stack growth
+      // Get stack pointer for user/kernel context
+      if(user) {
+        esp = f->esp;
+      }
+      else {
+        esp = thread_current()->stack;
+      }
+      upage = esp;
+      kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
+      if(kpage == NULL) {
+        printf("Stack page allocation failed\n");
+        kill(f);
+      }
+      if(!pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true)) {
+        printf("Stack page allocation mapping failed\n");
+        kill(f);
+      }
       return;
     }
 
@@ -246,7 +268,7 @@ page_fault (struct intr_frame *f)
   // Handle stack growth
   else /*if (stack_heuristic(f, fault_addr)) */{
 
-    printf("Hits else statement\n");
+   // printf("Hits else statement\n");
     void* esp;
     void* upage;
     void* kpage;
@@ -259,9 +281,14 @@ page_fault (struct intr_frame *f)
       esp = thread_current()->stack;
     }
 
-    // If we got invalid access, make sure it's not the stack
+    // If the stack pointer is 4 or 32 bytes below esp, we need to allocate a new page
     if(esp - 4 == fault_addr || esp - 32 == fault_addr || !user) {
+      printf("Stack is below esp, need to allocate a new page\n");
       // Check to make sure the stack isn't too big
+      if(((uint32_t*) PHYS_BASE) - ((uint32_t*) fault_addr) > MAX_STACK_SIZE) {
+        printf("Stack is too big\n");
+        kill(f);
+      }
 
       upage = esp;
       kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
