@@ -237,6 +237,7 @@ process_exit (void)
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+  delete_sup_pt(); // delete sup page
 
   pd = cur->pagedir;
   if (pd != NULL) 
@@ -631,9 +632,10 @@ setup_stack (void **esp, const char* file_name)
 		frame_set_done(kpage, true);
   }
   if (kpage != NULL) 
-    {
+    {	
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
+	      zero_sup_pte(((uint8_t *) PHYS_BASE) - PGSIZE, true);
               //*esp = PHYS_BASE;
               /* setup temporary pointer*/
               temp_ptr = PHYS_BASE;

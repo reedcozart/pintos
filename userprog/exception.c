@@ -233,9 +233,11 @@ page_fault (struct intr_frame *f)
         memset(kpage + spte->read_bytes, 0, spte->zero_bytes);
         break;
       case SPTE_MMAP: break;
-      case SPTE_SWAP: break;
+      case SPTE_SWAP: 
+	swap_read(spte->swap, kpage);
+	break;
       case SPTE_ZERO: break;
-        memset(fault_addr, 0, PGSIZE);
+        memset(kpage, 0, PGSIZE);
         break;
     }
 
