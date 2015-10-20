@@ -35,7 +35,7 @@ void swap_init() {
 
 void swap_read(int swap_page, const void* uaddr) {
 	int i;
-
+	printf("read block \n");
 	// Read through enough blocks to read a full page into swap_block
 	for(i = 0; i < NUM_SECTORS_PER_PAGE; i++) {
 		block_read(swap_block, (swap_page * NUM_SECTORS_PER_PAGE) + i, uaddr + (i * BLOCK_SECTOR_SIZE));
@@ -47,13 +47,16 @@ void swap_read(int swap_page, const void* uaddr) {
 void swap_write(const void* uaddr) {
 	int swap_page = bitmap_scan(swap_free, 0, 1, true);
 	int i;
-
+	printf("write block \n");
 	// Write enough blocks for a full page into swap_block
 	for(i = 0; i < NUM_SECTORS_PER_PAGE; i++) {
 		block_write(swap_block, (swap_page * NUM_SECTORS_PER_PAGE) + i, uaddr + (i * BLOCK_SECTOR_SIZE));
 	}
 
 	bitmap_set(swap_free, swap_page, false);
+
+	printf("swap page %d \n", swap_page);
+
 	return swap_page;
 }
 
