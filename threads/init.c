@@ -129,7 +129,8 @@ main (void)
 #endif
 #ifdef VM
   /*Initialize supplimental page table and frame table*/
- frame_init(); 
+ frame_init();
+ swap_init(); 
 #endif
   printf ("Boot complete.\n");
   

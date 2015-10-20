@@ -13,9 +13,12 @@
 
 static struct lock lock;
 static struct frame* get_frame(void *page);
+static struct lock evict_mutex;
+
 
 void frame_init(){
 	lock_init(&lock);
+	lock_init(&evict_mutex);
 	list_init(&frames_list);
 }
 
@@ -36,7 +39,7 @@ void* frame_allocate(enum palloc_flags flags, void* uaddr){
 	}
 	// When frame table is full, need to evict
 	else {
-		printf("FRAME TABLE IS FULL, EVICTING FRAME\n");
+	//	printf("FRAME TABLE IS FULL, EVICTING FRAME\n");
 		frame = evict_frame(uaddr);
 	}
 	return frame;
@@ -84,30 +87,49 @@ void* evict_frame(void* new_frame_uaddr){
     struct sup_pte* evicted_sup_pte;
 	bool evicted_is_dirty;
 
-	intr_disable();
-
+//	intr_disable();
+	lock_acquire(&evict_mutex);
 	/* time to evict a frame!*/
 	lock_acquire(&lock);
 	evicted_frame = choose_evict();
 	lock_release(&lock);
-
+	
+	
 	evicted_page = evicted_frame->uaddr;
 	evicted_thread = get_thread_from_tid(evicted_frame->tid);
 	evicted_sup_pte = get_pte(evicted_page);
 	pagedir_clear_page(evicted_thread->pagedir, evicted_page);
 	evicted_is_dirty = pagedir_is_dirty(evicted_thread->pagedir, evicted_page);
 
-	if(evicted_is_dirty){
-		evicted_sup_pte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
-		swap_write(evicted_page);
+
+	// swap evicted frame
+	if(evicted_sup_pte->type == SPTE_FS){ // if in file write back only if dirty
+	  if(evicted_is_dirty){
+	       evicted_sup_pte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
+	       evicted_sup_pte->swap = swap_write(evicted_frame);
+	       evicted_sup_pte->type = SPTE_SWAP;
+	  }
+	}else if(evicted_sup_pte->type == SPTE_SWAP){
+		evicted_sup_pte->swap = swap_write(evicted_frame);
+		evicted_sup_pte->swapped = true;
+	}else if(evicted_sup_pte->type == SPTE_ZERO){ // stack zero
+		printf("different evict \n");
+		evicted_sup_pte->swap = swap_write(evicted_frame);
+		evicted_sup_pte->swapped = true;
+		evicted_sup_pte->type = SPTE_SWAP;
 	}
+	
+
+//	evicted_sup_pte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
+ //       evicted_sup_pte->swap = swap_write(evicted_frame);
+
 
 	evicted_frame->uaddr = new_frame_uaddr;
 	evicted_frame->tid = thread_current()->tid;
 	evicted_frame->done = false;
 	evicted_frame->count = 0;
-
-	intr_enable();
+	lock_release(&evict_mutex);
+//	intr_enable();
 	return evicted_frame->page;
 }
 
