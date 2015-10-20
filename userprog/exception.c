@@ -253,7 +253,7 @@ page_fault (struct intr_frame *f)
   else /*if (stack_heuristic(f, fault_addr)) */{
 
     printf("Hits else statement\n");
-    /*void* esp;
+    void* esp;
     void* upage;
     void* kpage;
 
@@ -278,7 +278,7 @@ page_fault (struct intr_frame *f)
       pagedir_set_page(thread_current()->pagedir, upage, kpage, true);
       frame_set_done(kpage, true);
       return;
-    }*/
+    }
     kill(f);
   }
 

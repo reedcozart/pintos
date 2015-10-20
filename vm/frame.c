@@ -36,6 +36,7 @@ void* frame_allocate(enum palloc_flags flags, void* uaddr){
 	}
 	// When frame table is full, need to evict
 	else {
+		printf("FRAME TABLE IS FULL, EVICTING FRAME\n");
 		frame = evict_frame(uaddr);
 	}
 	return frame;

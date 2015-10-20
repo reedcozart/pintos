@@ -81,7 +81,7 @@ process_execute (const char *file_name)
   // Open the file process
   printf("Opening the file process now\n");
   struct file* f = filesys_open(tok);
-  file_deny_write(f);
+  //file_deny_write(f);
   if(f == NULL) {
     printf("Opening file failed\n");
     return -1;
@@ -366,20 +366,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   process_activate (); //
   printf("INSIDE LOAD\n");
-  /* Open executable file. */
 
+  /* Open executable file. */
   strlcpy(local_cpy, file_name, sizeof(local_cpy));
+  printf("FILE NAME: %s", file_name);
   tok = strtok_r(local_cpy, " ", &saveptr);
   file = filesys_open (tok);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
-
       goto done; 
     }
     else{
     	printf("Load worked\n");
-    	file_deny_write(file);
+    	//file_deny_write(file);
     	t->file = file;
     }
 
@@ -547,7 +547,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
+  //file_seek (file, ofs);
 
   printf("Creating supplemental page table\n");
   while (read_bytes > 0 || zero_bytes > 0) 
@@ -580,6 +580,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
+      ofs += PGSIZE;
       upage += PGSIZE;
       //printf("read_bytes = %d ", read_bytes);
       //printf("zero_bytes = %d ", zero_bytes);
@@ -623,7 +624,9 @@ setup_stack (void **esp, const char* file_name)
   char* argv_addr;
 
   //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  printf("Stack setting up\n");
   kpage = frame_allocate(PAL_USER | PAL_ZERO, ((uint8_t *) PHYS_BASE) - PGSIZE);
+  printf("Stack page pointer: %p\n", kpage);
   if(kpage != NULL){
 		frame_set_done(kpage, true);
   }
