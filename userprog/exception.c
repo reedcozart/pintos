@@ -139,6 +139,7 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+  void* fault_addr_original;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -147,7 +148,7 @@ page_fault (struct intr_frame *f)
      See [IA32-v2a] "MOV--Move to/from Control Registers" and
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
-  asm ("movl %%cr2, %0" : "=r" (fault_addr));
+  asm ("movl %%cr2, %0" : "=r" (fault_addr_original));
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -166,13 +167,13 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   
   //printf("I demand a page \n");
-  //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
+  //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr_original,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
   if(!user) //indicates a page fault in kernel context
     kill(f);
     //thread_exit();
 
-   if(fault_addr == 0) {
+   if(fault_addr_original == 0) {
     //printf("Fault address is zero\n");
     kill(f);
     return;
@@ -189,13 +190,12 @@ page_fault (struct intr_frame *f)
 
     esp = f->esp;
 
-    //printf("esp: %p fault_addr: %p\n", esp, fault_addr);
     //printf("esp + 4 bytes: %p\n", esp + 1);
     //printf("esp + 32 bytes: %p\n", esp + 8);
 
     // Get the address of the actual page
-    fault_addr = pg_round_down(fault_addr); //page aligning the fault_addr
-
+    fault_addr = pg_round_down(fault_addr_original); //page aligning the fault_addr
+    //printf("esp: %p fault_addr: %p\n", esp, fault_addr);
     t = thread_current();
 
     // Obtain the page table entry for the requested page
@@ -213,17 +213,34 @@ page_fault (struct intr_frame *f)
       else {
         esp = thread_current()->stack;
       }
-      upage = esp;
-      kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
-      if(kpage == NULL) {
-        printf("Stack page allocation failed\n");
-        kill(f);
+      //printf("Difference in fault addr and stack: %d", ((uint32_t*) PHYS_BASE) - ((uint32_t*) fault_addr));
+      // Check if the stack is too big 
+      /*if(((uint32_t*) PHYS_BASE) - ((uint32_t*) fault_addr) >= MAX_STACK_SIZE) {
+        //printf("Stack is too big\n");
+        thread_exit();
+      }*/
+
+      // Check if the memory access is within a page of the stack pointer
+      //printf("Fault addr - esp: %d\n", (((uint32_t) esp) - ((uint32_t)fault_addr_original)));
+      if((int) (((uint32_t) esp) - ((uint32_t)fault_addr_original)) < PGSIZE) {
+        upage = esp;
+        kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
+        if(kpage == NULL) {
+          printf("Stack page allocation failed\n");
+          kill(f);
+        }
+        if(!pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true)) {
+          printf("Stack page allocation mapping failed\n");
+          kill(f);
+        }
+        return;
       }
-      if(!pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true)) {
-        printf("Stack page allocation mapping failed\n");
-        kill(f);
+
+      // Invalid memory access
+      else {
+        //printf("Invalid stack memory access\n");
+        thread_exit();
       }
-      return;
     }
 
     // Allocate the frame for  the requested virtual address
@@ -283,12 +300,12 @@ page_fault (struct intr_frame *f)
 
     // If the stack pointer is 4 or 32 bytes below esp, we need to allocate a new page
     if(esp - 4 == fault_addr || esp - 32 == fault_addr || !user) {
-      printf("Stack is below esp, need to allocate a new page\n");
-      // Check to make sure the stack isn't too big
-      if(((uint32_t*) PHYS_BASE) - ((uint32_t*) fault_addr) > MAX_STACK_SIZE) {
+      //printf("Stack is below esp, need to allocate a new page\n");
+      // Check to make sure the memory a
+      /*if(((uint32_t*) PHYS_BASE) - ((uint32_t*) fault_addr) > MAX_STACK_SIZE) {
         printf("Stack is too big\n");
         kill(f);
-      }
+      }*/
 
       upage = esp;
       kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
