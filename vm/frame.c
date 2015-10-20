@@ -31,7 +31,7 @@ void* frame_allocate(enum palloc_flags flags, void* uaddr){
 
 	if(frame != NULL) {
 		// Successful adding of frame
-		printf("Adding frame %p to table\n", uaddr);
+		//printf("Adding frame %p to table\n", uaddr);
 		add_frame(frame, uaddr);
 	}
 	// When frame table is full, need to evict
@@ -65,7 +65,7 @@ static bool add_frame(void* frame_addr, void* uaddr) {
 	lock_acquire(&lock);
 	list_push_back(&frames_list, &frame->elem);
 	lock_release(&lock);
-	printf("Successfully added frame to address %p\n", frame->page);
+	//printf("Successfully added frame to address %p\n", frame->page);
 	return true;
 
 }

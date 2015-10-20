@@ -45,10 +45,7 @@ bool init_sup_pte(void* uaddr, struct file* f, off_t offset, uint32_t read_bytes
 	spte->loadded = false;
 	spte->uaddr = uaddr;
 	spte->writable = writable;
-	printf("Supplemental page table initialized\n");
-	if(spte->writable) {
-		printf("Writable is true\n");
-	}
+	//printf("Supplemental page table initialized\n");
 	return (hash_insert(&(t->sup_pagedir), &(spte->elem)) == NULL);	
 }
 

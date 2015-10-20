@@ -148,8 +148,6 @@ page_fault (struct intr_frame *f)
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
-  printf("Page fault\n");
-	printf("Fault address: %p\n", fault_addr);
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -168,7 +166,7 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   
   //printf("I demand a page \n");
-  printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
+  //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
   if(!user) //indicates a page fault in kernel context
     //kill(f);
@@ -198,10 +196,6 @@ page_fault (struct intr_frame *f)
 
     // Obtain the page table entry for the requested page
     spte = get_pte(fault_addr);
-
-    if(spte->writable) {
-      printf("Writable is true\n");
-    }
 
     if(spte == NULL) {
       printf("Obtaining supplemental page table entry failed.\n");
