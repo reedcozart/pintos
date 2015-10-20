@@ -199,6 +199,10 @@ page_fault (struct intr_frame *f)
     // Obtain the page table entry for the requested page
     spte = get_pte(fault_addr);
 
+    if(spte->writable) {
+      printf("Writable is true\n");
+    }
+
     if(spte == NULL) {
       printf("Obtaining supplemental page table entry failed.\n");
       printf("Fault address: %p", fault_addr);
@@ -246,7 +250,7 @@ page_fault (struct intr_frame *f)
   }
 
   // Handle stack growth
-  else if (stack_heuristic(f, fault_addr)) {
+  else /*if (stack_heuristic(f, fault_addr)) */{
 
     printf("Hits else statement\n");
     /*void* esp;
@@ -275,11 +279,11 @@ page_fault (struct intr_frame *f)
       frame_set_done(kpage, true);
       return;
     }*/
-
+    kill(f);
   }
 
   // Not stack growth, it is present, it is user.
-  kill(f);
+
 
 		// stack growth
     //kpage = palloc_get_page(PAL_USER | PAL_ZERO);
