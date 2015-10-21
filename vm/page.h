@@ -28,6 +28,7 @@ struct sup_pte {
 	off_t offset;
 	uint32_t read_bytes;
 	uint32_t zero_bytes;
+	int swap;
 };
 
 unsigned page_hash (const struct hash_elem *p_, void *aux);

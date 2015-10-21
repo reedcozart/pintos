@@ -167,7 +167,7 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   
   //printf("I demand a page \n");
-  //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr_original,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
+  printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr_original,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
   if(!user) //indicates a page fault in kernel context
     kill(f);
@@ -177,6 +177,14 @@ page_fault (struct intr_frame *f)
     //printf("Fault address is zero\n");
     kill(f);
     return;
+   }
+
+   printf("Page directory: %p\n", thread_current()->pagedir);
+   if(pagedir_is_dirty(thread_current()->pagedir, fault_addr)) {
+     printf("Page is dirty\n");
+   }
+   else {
+     printf("Page is clean\n");
    }
 
   // If the page is not present in physical memory
@@ -229,6 +237,7 @@ page_fault (struct intr_frame *f)
           printf("Stack page allocation failed\n");
           kill(f);
         }
+        zero_sup_pte(upage, true);
         if(!pagedir_set_page(thread_current()->pagedir, fault_addr, kpage, true)) {
           printf("Stack page allocation mapping failed\n");
           kill(f);
@@ -273,8 +282,8 @@ page_fault (struct intr_frame *f)
         break;
       case SPTE_MMAP: break;
       case SPTE_SWAP: 
-	swap_read(spte->swap, kpage);
-	break;
+	      swap_read(spte->swap, kpage);
+	      break;
       case SPTE_ZERO: break;
         memset(kpage, 0, PGSIZE);
         break;
@@ -287,8 +296,8 @@ page_fault (struct intr_frame *f)
   // Handle stack growth
   else /*if (stack_heuristic(f, fault_addr)) */{
 
-   // printf("Hits else statement\n");
-    void* esp;
+    printf("Hits else statement\n");
+    /*void* esp;
     void* upage;
     void* kpage;
 
@@ -309,7 +318,7 @@ page_fault (struct intr_frame *f)
         kill(f);
       }*/
 
-      upage = esp;
+      /*upage = esp;
       kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
       if(kpage == NULL) {
         printf("Frame allocation has failed\n");
@@ -318,7 +327,7 @@ page_fault (struct intr_frame *f)
       pagedir_set_page(thread_current()->pagedir, upage, kpage, true);
       frame_set_done(kpage, true);
       return;
-    }
+    }*/
     kill(f);
   }
 

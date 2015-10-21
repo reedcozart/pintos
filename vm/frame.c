@@ -94,7 +94,6 @@ void* evict_frame(void* new_frame_uaddr){
 	evicted_frame = choose_evict();
 	lock_release(&lock);
 	
-	
 	evicted_page = evicted_frame->uaddr;
 	evicted_thread = get_thread_from_tid(evicted_frame->tid);
 	evicted_sup_pte = get_pte(evicted_page);
