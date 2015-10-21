@@ -208,7 +208,7 @@ page_fault (struct intr_frame *f)
 
     // Obtain the page table entry for the requested page
     spte = get_pte(fault_addr);
-
+    printf("page fault address %p \n", spte->uaddr);
     if(spte == NULL) {
       //printf("Obtaining supplemental page table entry failed.\n");
       //printf("Fault address: %p\n", fault_addr);
@@ -291,6 +291,7 @@ page_fault (struct intr_frame *f)
 
     frame_set_done(kpage, true);
     pagedir_set_dirty(t->pagedir, fault_addr, false);
+   // pagedir_set_page(thread_current()->pagedir, upage, kpage, true);
   }
 
   // Handle stack growth
@@ -324,13 +325,14 @@ page_fault (struct intr_frame *f)
         printf("Frame allocation has failed\n");
         return;
       }
+      zero_sup_pte(upage, true);
       pagedir_set_page(thread_current()->pagedir, upage, kpage, true);
       frame_set_done(kpage, true);
       return;
     }*/
     kill(f);
   }
-
+  
   // Not stack growth, it is present, it is user.
 
 

@@ -8,6 +8,7 @@ struct frame{
 	struct list_elem elem;
 	void* uaddr;
 	bool done;
+        bool pinned;
 	int count;	// checks which frame is the oldest for eviction policy
 };
 

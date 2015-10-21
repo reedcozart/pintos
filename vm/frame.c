@@ -62,8 +62,8 @@ static bool add_frame(void* frame_addr, void* uaddr) {
 	frame->tid = thread_current()->tid;
 	frame->uaddr = uaddr;
 	frame->done = false;
-	frame->count = 0;
-
+	frame->count = 0; 
+	frame->pinned = false;
 	// Synchronize adding to the frame list
 	lock_acquire(&lock);
 	list_push_back(&frames_list, &frame->elem);
@@ -106,16 +106,16 @@ void* evict_frame(void* new_frame_uaddr){
 	  printf("fs swap \n");
 	  if(evicted_is_dirty){
 	       evicted_sup_pte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
-	       evicted_sup_pte->swap = swap_write(evicted_frame);
+	       evicted_sup_pte->swap = swap_write(evicted_frame->page);
 	       evicted_sup_pte->type = SPTE_SWAP;
 	  }
 	}else if(evicted_sup_pte->type == SPTE_SWAP){
 		printf("swap swap \n");
-		evicted_sup_pte->swap = swap_write(evicted_frame);
+		evicted_sup_pte->swap = swap_write(evicted_frame->page);
 		evicted_sup_pte->swapped = true;
 	}else if(evicted_sup_pte->type == SPTE_ZERO){ // stack zero
 		printf("stack swap \n");
-		evicted_sup_pte->swap = swap_write(evicted_frame);
+		evicted_sup_pte->swap = swap_write(evicted_frame->page);
 		evicted_sup_pte->swapped = true;
 		evicted_sup_pte->type = SPTE_SWAP;
 	}
@@ -178,6 +178,7 @@ struct frame* choose_evict(){
 	  	}
   	}
  }
+
 /*return a frame mapped to a page*/
 static struct frame* get_frame(void *page){
 	struct frame* f;
