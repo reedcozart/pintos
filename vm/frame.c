@@ -99,27 +99,27 @@ void* evict_frame(void* new_frame_uaddr){
 	evicted_sup_pte = get_pte(evicted_page);
 	pagedir_clear_page(evicted_thread->pagedir, evicted_page);
 	evicted_is_dirty = pagedir_is_dirty(evicted_thread->pagedir, evicted_page);
-	printf("%p  evicts %p \n", new_frame_uaddr, evicted_page);
+	//printf("%p  evicts %p \n", new_frame_uaddr, evicted_page);
 
 	// swap evicted frame
 	if(evicted_sup_pte->type == SPTE_FS){ // if in file write back only if dirty
-	  printf("fs swap \n");
+	  //printf("fs swap \n");
 	  if(evicted_is_dirty){
 	       evicted_sup_pte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
 	       evicted_sup_pte->swap = swap_write(evicted_frame->page);
 	       evicted_sup_pte->type = SPTE_SWAP;
 	  }
 	}else if(evicted_sup_pte->type == SPTE_SWAP){
-		printf("swap swap \n");
+		//printf("swap swap \n");
 		evicted_sup_pte->swap = swap_write(evicted_frame->page);
 		evicted_sup_pte->swapped = true;
 	}else if(evicted_sup_pte->type == SPTE_ZERO){ // stack zero
-		printf("stack swap \n");
+		//printf("stack swap \n");
 		evicted_sup_pte->swap = swap_write(evicted_frame->page);
 		evicted_sup_pte->swapped = true;
 		evicted_sup_pte->type = SPTE_SWAP;
 	}
-	printf("SWAPPED PAGE %d \n", evicted_sup_pte->swap);
+	//printf("SWAPPED PAGE %d \n", evicted_sup_pte->swap);
 //	evicted_sup_pte->swapped = true; //INDICATE HERE THAT WE SWAPPED IT!
  //       evicted_sup_pte->swap = swap_write(evicted_frame);
 

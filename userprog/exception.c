@@ -167,7 +167,7 @@ page_fault (struct intr_frame *f)
      which fault_addr refers. */
   
   //printf("I demand a page \n");
-  printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr_original,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
+  //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr_original,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
   if(!user) //indicates a page fault in kernel context
     kill(f);
@@ -179,13 +179,13 @@ page_fault (struct intr_frame *f)
     return;
    }
 
-   printf("Page directory: %p\n", thread_current()->pagedir);
+   /*printf("Page directory: %p\n", thread_current()->pagedir);
    if(pagedir_is_dirty(thread_current()->pagedir, fault_addr)) {
      printf("Page is dirty\n");
    }
    else {
      printf("Page is clean\n");
-   }
+   }*/
 
   // If the page is not present in physical memory
   if(not_present){
@@ -208,7 +208,7 @@ page_fault (struct intr_frame *f)
 
     // Obtain the page table entry for the requested page
     spte = get_pte(fault_addr);
-    printf("page fault address %p \n", spte->uaddr);
+    //printf("page fault address %p \n", spte->uaddr);
     if(spte == NULL) {
       //printf("Obtaining supplemental page table entry failed.\n");
       //printf("Fault address: %p\n", fault_addr);

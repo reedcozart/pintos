@@ -23,7 +23,6 @@ struct sup_pte {
 	bool writable;
 	enum spt_type type;
 	bool loadded;
-        int swap;
 	// Details about the executable
 	struct file* file;
 	off_t offset;
