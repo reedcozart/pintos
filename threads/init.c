@@ -129,6 +129,7 @@ main (void)
 #endif
 #ifdef VM
   /*Initialize supplimental page table and frame table*/
+ initialize_spte();
  frame_init();
  swap_init(); 
 #endif

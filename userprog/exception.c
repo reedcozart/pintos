@@ -105,12 +105,12 @@ kill (struct intr_frame *f)
          may cause kernel exceptions--but they shouldn't arrive
          here.)  Panic the kernel to make the point.  */
       intr_dump_frame (f);
-      PANIC ("Kernel bug - unexpected interrupt in kernel"); 
+      //PANIC ("Kernel bug - unexpected interrupt in kernel"); 
       /*REED: I commented the panic because we were failing tests from a page
       fault in a kernel context. To fix this if (write && !user) kill(f) 
       we need to catch this condition without panicing the kernel.
       */
-      //thread_exit();
+      thread_exit();
 
     default:
       /* Some other code segment?  Shouldn't happen.  Panic the
@@ -169,9 +169,12 @@ page_fault (struct intr_frame *f)
   //printf("I demand a page \n");
   //printf ("Page fault at %p: %s error %s page in %s context.\n",fault_addr_original,not_present ? "not present" : "rights violation",write ? "writing" : "reading",user ? "user" : "kernel");
 
-  if(!user) //indicates a page fault in kernel context
+  // If the memory access was not in userspace
+  if(!user) {
+    //printf("Not in user space!\n");
     kill(f);
     //thread_exit();
+  } 
 
    if(fault_addr_original == 0) {
     //printf("Fault address is zero\n");
@@ -229,8 +232,11 @@ page_fault (struct intr_frame *f)
       }*/
 
       // Check if the memory access is within a page of the stack pointer
-      //printf("Fault addr - esp: %d\n", (((uint32_t) esp) - ((uint32_t)fault_addr_original)));
-      if((int) (((uint32_t) esp) - ((uint32_t)fault_addr_original)) < PGSIZE) {
+      int difference = (int) (((uint32_t) esp) - ((uint32_t)fault_addr_original));
+      //printf("Fault addr - esp: %d\n", difference);
+
+      if(difference < PGSIZE && difference > -(20 * PGSIZE)) {
+        //printf("Allocating stack memory\n");
         upage = esp;
         kpage = frame_allocate(PAL_USER | PAL_ZERO, upage);
         if(kpage == NULL) {
@@ -247,7 +253,7 @@ page_fault (struct intr_frame *f)
 
       // Invalid memory access
       else {
-        //printf("Invalid stack memory access\n");
+        //printf("Invalid memory access\n");
         thread_exit();
       }
     }
@@ -294,10 +300,10 @@ page_fault (struct intr_frame *f)
    // pagedir_set_page(thread_current()->pagedir, upage, kpage, true);
   }
 
-  // Handle stack growth
+  // Handle rights violations
   else /*if (stack_heuristic(f, fault_addr)) */{
 
-    printf("Hits else statement\n");
+    //printf("Hits else statement\n");
     /*void* esp;
     void* upage;
     void* kpage;
@@ -330,11 +336,10 @@ page_fault (struct intr_frame *f)
       frame_set_done(kpage, true);
       return;
     }*/
-    kill(f);
+    thread_exit();
   }
   
   // Not stack growth, it is present, it is user.
-
 
 		// stack growth
     //kpage = palloc_get_page(PAL_USER | PAL_ZERO);

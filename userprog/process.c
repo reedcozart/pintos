@@ -104,7 +104,6 @@ start_process (void *file_name_)
   struct intr_frame if_;
   struct thread* t;
   bool success;
-
   /* Initialize interrupt frame and load executable. */
   t = thread_current();
   memset (&if_, 0, sizeof if_);
@@ -135,7 +134,6 @@ start_process (void *file_name_)
   if (!success) {
     thread_exit ();
   }
-
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -185,6 +183,10 @@ process_wait (tid_t child_tid)
   result = tchild->status;
   return result;*/
   struct child_process* cp = get_child_process(child_tid);
+  //if(cp->waited){ // handle waited twice
+//	return -1;
+ // }
+ // cp->waited = 1;
   if (!cp)
     {
       return ERROR;
@@ -193,12 +195,11 @@ process_wait (tid_t child_tid)
     {
       return ERROR;
     }
-  //cp->wait = true;
+   cp->wait = true;
   sema_down(&(cp->sem_read));
   int status = cp->status;
   //printf("Status: %i\n", status);
   sema_up(&(cp->sem_die));
-  //printf("Child process removed\n");
 
   return status;
 }
@@ -224,8 +225,9 @@ process_exit (void)
 
   //printf("PROCESS WAITING TO EXIT\n");
   sema_down(&(cur->cp->sem_die));
+  
+ // printf("%s: exit(%d)\n", cur->name, cur->cp->status);
   remove_child_process(cur->cp);
-  //printf("PROCESS EXITING\n");
 
   // Close all files opened by process
   process_close_file(CLOSE_ALL);

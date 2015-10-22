@@ -29,9 +29,9 @@ void* frame_allocate(enum palloc_flags flags, void* uaddr){
 	// should  never be called on kernel 
 	if(!(flags & PAL_USER))
 		return NULL;
-	
+        lock_acquire(&evict_mutex);	
 	frame = palloc_get_page(flags);
-
+        lock_release(&evict_mutex);
 	if(frame != NULL) {
 		// Successful adding of frame
 		//printf("Adding frame %p to table\n", uaddr);
@@ -65,9 +65,9 @@ static bool add_frame(void* frame_addr, void* uaddr) {
 	frame->count = 0; 
 	frame->pinned = false;
 	// Synchronize adding to the frame list
-	lock_acquire(&lock);
+	lock_acquire(&evict_mutex);
 	list_push_back(&frames_list, &frame->elem);
-	lock_release(&lock);
+	lock_release(&evict_mutex);
 	//printf("Successfully added frame to address %p\n", frame->page);
 	return true;
 
@@ -90,16 +90,17 @@ void* evict_frame(void* new_frame_uaddr){
 //	intr_disable();
 	lock_acquire(&evict_mutex);
 	/* time to evict a frame!*/
-	lock_acquire(&lock);
+//	lock_acquire(&lock);
 	evicted_frame = choose_evict();
-	lock_release(&lock);
+//	lock_release(&lock);
 	
 	evicted_page = evicted_frame->uaddr;
 	evicted_thread = get_thread_from_tid(evicted_frame->tid);
 	evicted_sup_pte = get_pte(evicted_page);
 	pagedir_clear_page(evicted_thread->pagedir, evicted_page);
 	evicted_is_dirty = pagedir_is_dirty(evicted_thread->pagedir, evicted_page);
-	//printf("%p  evicts %p \n", new_frame_uaddr, evicted_page);
+	struct thread* t = thread_current();
+//	printf("%p of thread %d  evicts %p of thread %d \n", new_frame_uaddr, t->tid,  evicted_page, t->tid);
 
 	// swap evicted frame
 	if(evicted_sup_pte->type == SPTE_FS){ // if in file write back only if dirty
@@ -128,6 +129,7 @@ void* evict_frame(void* new_frame_uaddr){
 	evicted_frame->tid = thread_current()->tid;
 	evicted_frame->done = false;
 	evicted_frame->count = 0;
+//	frame_set_done(evicted_frame->page, true);
 	lock_release(&evict_mutex);
 //	intr_enable();
 	return evicted_frame->page;
@@ -183,7 +185,7 @@ struct frame* choose_evict(){
 static struct frame* get_frame(void *page){
 	struct frame* f;
 	struct list_elem *e;
-	lock_acquire(&lock);
+	lock_acquire(&evict_mutex);
 	e = list_head(&frames_list);
         f = list_entry(e, struct frame, elem);
 
@@ -194,14 +196,14 @@ static struct frame* get_frame(void *page){
                 e = list_next(e); //look at next element in the list!
                 f = list_entry(e, struct frame, elem);
         }
-	lock_release(&lock);
+	lock_release(&evict_mutex);
 	return f;
 }
 
 void frame_free (void *frame)
 {
   struct list_elem *e;
-  
+  lock_acquire(&evict_mutex);  
   for (e = list_begin(&frames_list); e != list_end(&frames_list);
        e = list_next(e))
     {
@@ -214,6 +216,7 @@ void frame_free (void *frame)
 	  break;
 	}
     }
+  lock_release(&evict_mutex);
 }
 
 
