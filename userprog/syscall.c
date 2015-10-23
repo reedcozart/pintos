@@ -363,11 +363,12 @@ int user_to_kernel_ptr(void* vaddr) {
 		//printf("INVALID MEMORY ACCESS\n");
 	  kpage = frame_allocate(PAL_USER, vaddr);
 	  struct sup_pte *spte = get_pte(vaddr);
+       //  if(!spte){
 	  switch(spte->type) {
               case SPTE_FS: //load_page_file(spte); break;
                  if (spte->read_bytes > 0){
                         if (file_read_at(spte->file, kpage, spte->read_bytes, spte->offset) != (int) spte->read_bytes){
-                            printf("Error loading file into memory");
+              //              printf("Error loading file into memory %d ", spte->file);
                             return 0;
                         }
                     }
@@ -388,6 +389,7 @@ int user_to_kernel_ptr(void* vaddr) {
              pagedir_set_page(thread_current()->pagedir, vaddr, kpage, true);
              return 1;
 		//exit(-1);
+//	}
 	}
 	return (int) ptr;
 }

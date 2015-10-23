@@ -79,7 +79,7 @@ process_execute (const char *file_name)
   // Open the file process
   //printf("Opening the file process now\n");
   struct file* f = filesys_open(tok);
-  //file_deny_write(f);
+  file_deny_write(f);
   if(f == NULL) {
     printf("Opening file failed\n");
     return -1;
