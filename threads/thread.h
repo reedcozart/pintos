@@ -5,9 +5,6 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
-#include "lib/kernel/hash.h"
-
-
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -83,28 +80,11 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
-
-struct file_desc {
-	int id;
-	struct list_elem elem;
-	struct file* file;
-};
-
-struct child_thread {
-	tid_t tid;
-	int exit_status;
-	bool exited;
-	bool waiting;
-        bool waited;
-	struct list_elem elem;
-};
-
 struct thread
   {
     /* Owned by thread.c. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
-    int returnval;
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
@@ -112,30 +92,25 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-		struct list locks;
-    bool load;
 
-    struct semaphore sem;
-    struct semaphore sem_load;
-    struct semaphore sem_read;
-
-    
+#ifdef USERPROG
     /* Owned by userprog/process.c. */
-		tid_t parent_tid;
     uint32_t *pagedir;                  /* Page directory. */
-    struct hash sup_pagedir;              /* Supplimental page directory*/
-
+#endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-
-    struct list file_descrips;
-    struct list child_threads;
-
-    struct child_process* cp;
-
-    struct file* file;
   };
+
+/*Data structure for holding information about a waiting thread*/
+
+struct waiting_thread{
+	int wait_time;
+	struct semaphore sema;
+	struct list_elem elem;
+};
+
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -173,6 +148,9 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-struct thread* get_thread_from_tid(tid_t tid);
-bool thread_alive (int pid);
+bool thread_add_to_ready_list(struct list_elem *elem);
+bool thread_add_to_waiting_list(struct list_elem *elem);
+
+void wake_waiting_threads (int64_t ticks);
+
 #endif /* threads/thread.h */
