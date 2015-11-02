@@ -13,6 +13,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "vm/page.h"
+#include "vm/frame.h"
 
 #include <debug.h>
 
@@ -95,34 +96,34 @@ syscall_handler (struct intr_frame *f UNUSED)
 		f->eax = open((const char*)args[0]);
 		break;
 	case SYS_FILESIZE:
-	//printf("SYS_FILESIZE\n");
+//	printf("SYS_FILESIZE\n");
 		get_args(f, &args[0], 1);
 		f->eax = filesize(args[0]);
 		break;
 	case SYS_READ:
-	//printf("SYS_READ\n");
+//	printf("SYS_READ\n");
 		get_args(f, &args[0], 3);
 		f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
 		break;
 	case SYS_WRITE:
-	///printf("SYS_WRITE\n");
+//	printf("SYS_WRITE\n");
 		get_args(f, &args[0], 3);
 		user_to_kernel_ptr((void*) args[1]);
 		//f->eax = read(args[0], (void*) args[1], (unsigned) args[2]);
 		f->eax = write(args[0], (void*) args[1], (unsigned) args[2]);
 		break;
 	case SYS_SEEK:
-	//printf("SYS_SEEK\n");
+//	printf("SYS_SEEK\n");
 		get_args(f, &args[0], 2);
 		seek(args[0], (unsigned) args[1]);
 		break;
 	case SYS_TELL:
-	//printf("SYS_TELL\n");
+//	printf("SYS_TELL\n");
 		get_args(f, &args[0], 1);
 		f->eax = tell(args[0]);
 		break;
 	case SYS_CLOSE:
-	//printf("SYS_CLOSE\n");
+//	printf("SYS_CLOSE\n");
 		get_args(f, &args[0], 1);
 		close(args[0]);
 		break;
@@ -364,10 +365,41 @@ void check_valid_pointer(void* addr) {
 
 int user_to_kernel_ptr(void* vaddr) {
 	check_valid_pointer(vaddr);
+        void *kpage;
+        vaddr = pg_round_down(vaddr);
+        struct thread *t = thread_current();
 	void* ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
 	if(!ptr) {
 		//printf("INVALID MEMORY ACCESS\n");
-		exit(-1);
+	  kpage = frame_allocate(PAL_USER, vaddr);
+	  struct sup_pte *spte = get_pte(vaddr);
+       //  if(!spte){
+	  switch(spte->type) {
+              case SPTE_FS: //load_page_file(spte); break;
+                 if (spte->read_bytes > 0){
+                        if (file_read_at(spte->file, kpage, spte->read_bytes, spte->offset) != (int) spte->read_bytes){
+              //              printf("Error loading file into memory %d ", spte->file);
+                            return 0;
+                        }
+                    }
+
+                   // Zero pad the rest of the page
+                   memset(kpage + spte->read_bytes, 0, spte->zero_bytes);
+                   break;
+         case SPTE_MMAP: break;
+         case SPTE_SWAP:
+              swap_read(spte->swap, kpage);
+              break;
+         case SPTE_ZERO: break;
+              memset(kpage, 0, PGSIZE);
+           break;
+         }
+             frame_set_done(kpage, true);
+             pagedir_set_dirty(t->pagedir, vaddr, false);
+             pagedir_set_page(thread_current()->pagedir, vaddr, kpage, true);
+             return 1;
+		//exit(-1);
+//	}
 	}
 	return (int) ptr;
 }
@@ -473,8 +505,8 @@ int get_user(const uint8_t* uaddr) {
 
 int checkMemorySpace(void* vaddr, int size) {
 	int i;
-	for(i = 0; i < size; i++) {
-		user_to_kernel_ptr(vaddr);
+	for(i = 0; i < size; i+=PGSIZE) {
+		if(user_to_kernel_ptr(vaddr+i) == 0) return 0;
 	}
 	return 1;
 }

@@ -5,6 +5,14 @@
 #include "threads/thread.h"
 #include "threads/palloc.h"
 
+static struct lock spte_lock;
+
+
+void initialize_spte(){
+	lock_init(&spte_lock);
+}
+
+
 /* Returns a hash value for page p. */
 unsigned
 page_hash (const struct hash_elem *p_, void *aux)
@@ -27,7 +35,7 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_,
 // Create a supplemental page table and also store executable details WITHIN FILESYSTEM
 bool init_sup_pte(void* uaddr, struct file* f, off_t offset, uint32_t read_bytes, uint32_t zero_bytes, bool writable){
 	struct thread* t = thread_current();
-
+        lock_acquire(&spte_lock);
 	// Allocate the supplemental page table entry in memory
 	struct sup_pte *spte = (struct sup_pte*) malloc(sizeof(struct sup_pte));
 
@@ -45,13 +53,15 @@ bool init_sup_pte(void* uaddr, struct file* f, off_t offset, uint32_t read_bytes
 	spte->loadded = false;
 	spte->uaddr = uaddr;
 	spte->writable = writable;
+        bool ret = (hash_insert(&(t->sup_pagedir), &(spte->elem)) == NULL);
+	lock_release(&spte_lock);
 	//printf("Supplemental page table initialized\n");
-	return (hash_insert(&(t->sup_pagedir), &(spte->elem)) == NULL);	
+	return ret;	
 }
 
 bool zero_sup_pte(void *uaddr, bool writable) {
   struct thread *t = thread_current();
-
+  lock_acquire(&spte_lock);
   struct sup_pte *spte;
   spte = malloc(sizeof(struct sup_pte));
   if(spte == NULL) { return false; }
@@ -59,8 +69,9 @@ bool zero_sup_pte(void *uaddr, bool writable) {
   spte->uaddr = uaddr;
   spte->type = SPTE_ZERO;
   spte->writable = writable;
-
-  return hash_insert(&t->sup_pagedir, &(spte->elem)) == NULL;
+  bool ret = hash_insert(&t->sup_pagedir, &(spte->elem)) == NULL;
+  lock_release(&spte_lock);
+  return ret;
 }
 
 
@@ -84,16 +95,21 @@ bool set_kaddr(void* uaddr, void* kaddr){
 struct sup_pte* get_pte(void* uaddr){
 	struct sup_pte pte;
 	struct hash_elem *e;
+	lock_acquire(&spte_lock);
     struct thread* t = thread_current();
 
 	pte.uaddr = uaddr;
 	e = hash_find(&(t->sup_pagedir), &(pte.elem));
 	if(e == NULL) {
 		//printf("Page table entry null at %p\n", uaddr);
+		lock_release(&spte_lock);
 		return e;
 	}
-	else
-		return hash_entry(e, struct sup_pte, elem);
+	else{
+		struct sup_pte *p = hash_entry(e, struct sup_pte, elem);
+		lock_release(&spte_lock);
+		return p;
+          }
 }
 /*
 	remove pte
@@ -107,8 +123,10 @@ void delete_spte(struct hash_elem *elem, void *aux UNUSED) {
 	free supplimental page table
 */
 void delete_sup_pt(){
+	lock_acquire(&spte_lock);
 	struct thread* t = thread_current();
 	hash_destroy(&(t->sup_pagedir), *delete_spte);
+	lock_release(&spte_lock);
 }
 
 /*
@@ -116,9 +134,11 @@ void delete_sup_pt(){
 */
 void free_spte(void* uaddr){
 	struct sup_pte *spte = get_pte(uaddr);
+	lock_acquire(&spte_lock);
 	struct thread *t = thread_current();
 	hash_delete(&(t->sup_pagedir), &(spte->elem));
 	free(spte);
+	lock_release(&spte_lock);
 }
 /*
 	load from file to a page i.e for starting programs

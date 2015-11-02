@@ -95,6 +95,7 @@ struct child_thread {
 	int exit_status;
 	bool exited;
 	bool waiting;
+        bool waited;
 	struct list_elem elem;
 };
 
