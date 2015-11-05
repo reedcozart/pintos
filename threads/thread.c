@@ -82,6 +82,7 @@ static bool wait_less_func (const struct list_elem *a,
                              const struct list_elem *b,
                              void *aux UNUSED);
 bool ready_high_func (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+static bool thread_less_func(const struct list_elem *l, const struct list_elem *r, void *aux);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -221,6 +222,12 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  // Yield immediately if the thread being created has higher priority
+  if(priority > thread_current()->priority) {
+    //printf("Thread was created with higher priority. Thread yielding\n");
+    thread_yield();
+  }
 
   return tid;
 }
@@ -363,16 +370,19 @@ thread_set_priority (int new_priority)
   // give up cpu time if we are no longer the highest priority
   struct thread *t = thread_current(); 
   struct thread *next;
-//  if(!thread_mlfq){
+//  if(!thread_mlfq)
 	t->priority = new_priority;
-        lock_acquire(&ready_list_lock); // make sure no thread changes priority while we are sorting the data structure 
-        list_sort(&ready_list, ready_high_func, NULL); // update the ready list and check if it is not the highest process
+
+  lock_acquire(&ready_list_lock); // make sure no thread changes priority while we are sorting the data structure 
+  list_sort(&ready_list, ready_high_func, NULL); // update the ready list and check if it is not the highest process
 	lock_release(&ready_list_lock);
-        // when we sort the next thread to run is at the top of the list
+
+  // when we sort the next thread to run is at the top of the list
 	next = list_entry(list_begin(&ready_list), struct thread, elem); 
 	if(next->priority > t->priority){
-	     thread_yield();
-        }
+    //printf("Thread is yielding\n");
+	  thread_yield();
+  }
         // else continue running until we are done with our quanta
  // }
 }
@@ -672,3 +682,13 @@ bool ready_high_func (const struct list_elem *a, const struct list_elem *b, void
   return ready_thread_1->priority > ready_thread_2->priority;
 }
 
+/* Helper function passed as a parameter to list functions that
+ * tell it how to compare two elements of the list. */
+static bool thread_less_func(const struct list_elem *l, const struct list_elem *r, void *aux) {
+  struct thread *lthread, *rthread;
+  ASSERT (l != NULL && r != NULL);
+  lthread = list_entry(l, struct thread, elem);
+  rthread = list_entry(r, struct thread, elem);
+  
+  return (lthread->priority > rthread->priority);
+}

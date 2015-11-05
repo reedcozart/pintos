@@ -33,6 +33,8 @@
 #include "threads/thread.h"
 
 bool synch_high_func (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+static bool thread_less_func(const struct list_elem *l, const struct list_elem *r, void *aux);
+static bool sema_less_func(const struct list_elem *l, const struct list_elem *r, void *aux);
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -70,7 +72,8 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-     // list_push_back (&sema->waiters, &thread_current ()->elem);
+      // Insert the threads in priority order
+      ASSERT(list_begin(&sema->waiters) != NULL);
       list_insert_ordered(&sema->waiters, &thread_current ()->elem, &synch_high_func, NULL);
       thread_block ();
     }
@@ -112,15 +115,26 @@ void
 sema_up (struct semaphore *sema) 
 {
   enum intr_level old_level;
+  struct thread* t = NULL;
 
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)){ 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
-  }
   sema->value++;
+  if (!list_empty (&sema->waiters)){ 
+    // Sort the lists in case the threads changed priority
+    list_sort(&(sema->waiters), thread_less_func, NULL);
+
+    // Unblock the thread holding the semaphore with the highest priority
+    t = list_entry(list_pop_front(&sema->waiters), struct thread, elem);
+    thread_unblock (t);
+  }
+
+  // See if the current thread needs to yield to the unblocked thread
+  if(t != NULL && t->priority > thread_current()->priority) {
+    thread_yield();
+  }
+
   intr_set_level (old_level);
 }
 
@@ -184,6 +198,9 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+
+  // Initialize the lock at lowest priority first
+  lock->priority = PRI_MIN;
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -200,6 +217,19 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
+
+  struct thread* lock_holder = lock->holder;
+  struct thread* t = thread_current();
+
+  // First acquisition of lock case
+  /*if(lock->holder == NULL) {
+    lock->priority = 
+  }*/
+
+  // Transfer over the thread's priority to the lock's if it is larger
+  /*if(lock->priority < t->priority) {
+    lock->priority = t->priority;
+  }*/
 
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
@@ -300,7 +330,9 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  //list_push_back (&cond->waiters, &waiter.elem);
+
+  // Assign the new semaphore with a priority
+  waiter.semaphore.priority = thread_current()->priority;
   list_insert_ordered(&cond->waiters, &waiter.elem, &synch_high_func, NULL);
   lock_release (lock);
   sema_down (&waiter.semaphore);
@@ -322,9 +354,25 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
+  struct semaphore* sema = NULL;
+
+  /*if (!list_empty (&cond->waiters)) 
+    sema_up (&list_entry (list_pop_front (&cond->waiters),
+                          struct semaphore_elem, elem)->semaphore);*/
+
+  if (!list_empty (&cond->waiters)){ 
+    // Sort the lists in case the threads changed priority
+    list_sort(&(cond->waiters), sema_less_func, NULL);
+
+    // Unblock the thread holding the semaphore with the highest priority
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+  }
+
+  // See if the current thread needs to yield to the unblocked thread
+  /*if(sema != NULL && sema->priority > thread_current()->priority) {
+    thread_yield();
+  }*/
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -355,3 +403,22 @@ bool synch_high_func (const struct list_elem *a, const struct list_elem *b, void
   return ready_thread_1->priority > ready_thread_2->priority;
 }
 
+/* Helper function passed as a parameter to list functions that
+ * tell it how to compare two elements of a thread list. */
+static bool thread_less_func(const struct list_elem *l, const struct list_elem *r, void *aux) {
+  struct thread *lthread, *rthread;
+  ASSERT (l != NULL && r != NULL);
+  lthread = list_entry(l, struct thread, elem);
+  rthread = list_entry(r, struct thread, elem);
+  return (lthread->priority >= rthread->priority);
+}
+
+/* Helper function passed as a parameter to list functions that
+ * tell it how to compare two elements of a semaphore_elem list. */
+static bool sema_less_func(const struct list_elem *l, const struct list_elem *r, void *aux) {
+  struct semaphore_elem *lsema, *rsema;
+  ASSERT (l != NULL && r != NULL);
+  lsema = list_entry(l, struct semaphore_elem, elem);
+  rsema = list_entry(r, struct semaphore_elem, elem);
+  return (lsema->semaphore.priority > rsema->semaphore.priority);
+}
