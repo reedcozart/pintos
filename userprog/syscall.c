@@ -200,7 +200,8 @@ bool remove(const char* file){
 }
 
 int open(const char* file){
-	//printf("OPEN STARTS\n");
+	//printf("OPEN STARTS with %s\n", file);
+	//printf("File pointer is at %p\n", file);
 	if(user_to_kernel_ptr((void*) file)) {
 		//printf("OPEN DID NOT FAIL\n");
 		//debug_backtrace();
@@ -249,8 +250,17 @@ int filesize(int fdid){
 int read(int fd, void* buffer, unsigned size){
 	int result = -1;
 	unsigned offset;
-	
-	// Error check the buffer pointer
+	void* page_addr;
+	struct sup_pte* stpe;
+
+	page_addr = pg_round_down(buffer); //page aligning the fault_addr
+	stpe = get_pte(page_addr);
+	if(stpe != NULL) {
+		if(!stpe->writable) {
+			exit(-1);
+		}
+	}
+
 	if(checkMemorySpace(buffer, size)) {
 
 		// If reading from stdin
@@ -443,7 +453,7 @@ struct child_process* get_child_process (int pid)
 	    {
 	      return cp;
 	    }
-        }
+  }
   return NULL;
 }
 
