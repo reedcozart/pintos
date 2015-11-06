@@ -128,14 +128,16 @@ sema_up (struct semaphore *sema)
     // Unblock the thread holding the semaphore with the highest priority
     t = list_entry(list_pop_front(&sema->waiters), struct thread, elem);
     thread_unblock (t);
+   
+
   }
 
   // See if the current thread needs to yield to the unblocked thread
-  if(t != NULL && t->priority > thread_current()->priority) {
-    thread_yield();
+   if(t != NULL && t->priority > thread_current()->priority) {
+    thread_yield(); // this is causing alarm clock problems.
   }
+  intr_set_level(old_level);
 
-  intr_set_level (old_level);
 }
 
 static void sema_test_helper (void *sema_);

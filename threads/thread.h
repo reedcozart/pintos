@@ -90,6 +90,9 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
+    int64_t sleep_time;
+    struct list_elem sleeping_elem;
+    struct lock lock_desired;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -120,7 +123,7 @@ extern bool thread_mlfqs;
 void thread_init (void);
 void thread_start (void);
 
-void thread_tick (void);
+void thread_tick (int64_t cur_ticks);
 void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
@@ -154,5 +157,7 @@ bool thread_add_to_waiting_list(struct list_elem *elem);
 void wake_waiting_threads (int64_t ticks);
 
 static bool thread_less_func(const struct list_elem *l, const struct list_elem *r, void *aux);
+
+struct thread *thread_sleep(int64_t);
 
 #endif /* threads/thread.h */

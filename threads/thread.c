@@ -30,6 +30,10 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/*List of all threads that are sleeping. They are added to this list 
+by the thread_sleep function*/
+static struct list sleeping_threads_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -41,6 +45,9 @@ static struct lock tid_lock;
 
 /* Ready list lock*/
 static struct lock ready_list_lock;
+
+static bool thread_init_complete = false;
+
 /* List of all waiting threads*/
 struct list waiting_threads_list;
 
@@ -107,11 +114,14 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   list_init (&waiting_threads_list);
+  list_init (&sleeping_threads_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+  thread_init_complete = true;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -134,7 +144,7 @@ thread_start (void)
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
 void
-thread_tick (void) 
+thread_tick (int64_t cur_ticks) 
 {
   struct thread *t = thread_current ();
 
@@ -147,7 +157,8 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
-
+  if(thread_init_complete)
+    wake_sleeping_threads(cur_ticks);
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
@@ -241,10 +252,10 @@ thread_create (const char *name, int priority,
 void
 thread_block (void) 
 {
-  ASSERT (!intr_context ());
-  ASSERT (intr_get_level () == INTR_OFF);
+  ASSERT (!intr_context());
+  ASSERT (intr_get_level() == INTR_OFF);
 
-  thread_current ()->status = THREAD_BLOCKED;
+  thread_current()->status = THREAD_BLOCKED;
   schedule ();
 }
 
@@ -330,7 +341,7 @@ thread_exit (void)
 void
 thread_yield (void) 
 {
-  struct thread *cur = thread_current ();
+  struct thread *cur = thread_current();
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
@@ -650,25 +661,24 @@ bool thread_add_to_ready_list(struct list_elem *elem){
 }
 
 /* Wakes up all waiting threads that need to wake up*/
-void wake_waiting_threads (int64_t ticks){ 
+void wake_sleeping_threads (int64_t ticks){ 
   struct list_elem * elem;
-  struct waiting_thread * t_wait;
-  
-  while (!list_empty (&waiting_threads_list))
-    {
-      elem = list_pop_front (&waiting_threads_list);  
-      t_wait = list_entry (elem, struct waiting_thread, elem);
-      
-      if (t_wait->wait_time <= ticks)
-        {
-          sema_up (&t_wait->sema); // unblock thread
-        }
-      else
-       {
-         list_push_front (&waiting_threads_list, elem);
-         break;
-       }
+  struct thread* t_sleeping;
+  struct list_elem *e; 
+  ASSERT(intr_get_level() == INTR_OFF);
+
+  e = list_begin(&sleeping_threads_list);
+  while(e != list_end(&sleeping_threads_list) ) {
+    t_sleeping = list_entry(e, struct thread, sleeping_elem);
+    ASSERT(is_thread(t_sleeping));
+    e = list_next(e);
+    if(t_sleeping->sleep_time <= ticks){
+      t_sleeping->sleep_time = 0;
+      list_remove(&t_sleeping->sleeping_elem);
+      thread_unblock(t_sleeping);
     }
+  }
+
 }
 
 /*ready thread comparator function for insuring priority ordering from high to low*/
@@ -691,4 +701,12 @@ static bool thread_less_func(const struct list_elem *l, const struct list_elem *
   rthread = list_entry(r, struct thread, elem);
   
   return (lthread->priority > rthread->priority);
+}
+
+/*This function will get the current therad, put the thread in a sleep_list*/
+struct thread *thread_sleep(int64_t sleep_until){
+  struct thread *t = thread_current();
+  ASSERT(!intr_context());
+  t->sleep_time = sleep_until;
+  list_push_back(&sleeping_threads_list, &t->sleeping_elem);
 }
