@@ -129,9 +129,6 @@ sema_up (struct semaphore *sema)
     // Unblock the thread holding the semaphore with the highest priority
     t = list_entry(list_pop_front(&sema->waiters), struct thread, elem);
     thread_unblock (t);
-   
-
-
   }
 
   // See if the current thread needs to yield to the unblocked thread

@@ -701,15 +701,19 @@ struct thread *thread_sleep(int64_t sleep_until){
 
 void thread_set_priority_donation(struct thread *t, int new_priority, bool donated){
   struct thread *next;
-
-  if(donated == true){
+  
+  //t->priority = new_priority;
+  //if(!donated && t->priority == t->original_priority){
+   // t->original_priority = new_priority;
+  //}
+  if(donated){
     t->priority = new_priority;
   }else{
     if(t->priority == t->original_priority){
       t->priority = new_priority;
       t->original_priority = new_priority;
     }else{
-      t->priority = new_priority;
+      t->original_priority = new_priority;
     }
   }
 
