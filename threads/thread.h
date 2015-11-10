@@ -88,11 +88,14 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int original_priority;
     struct list_elem allelem;           /* List element for all threads list. */
 
     int64_t sleep_time;
     struct list_elem sleeping_elem;
-    struct lock lock_desired;
+    struct lock *lock_desired;
+    struct list locks;
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -159,5 +162,7 @@ void wake_waiting_threads (int64_t ticks);
 static bool thread_less_func(const struct list_elem *l, const struct list_elem *r, void *aux);
 
 struct thread *thread_sleep(int64_t);
+
+void thread_set_priority_donation(struct thread *t, int new_priority, bool donated);
 
 #endif /* threads/thread.h */

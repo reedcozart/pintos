@@ -35,6 +35,7 @@
 bool synch_high_func (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 static bool thread_less_func(const struct list_elem *l, const struct list_elem *r, void *aux);
 static bool sema_less_func(const struct list_elem *l, const struct list_elem *r, void *aux);
+static bool lock_less_func(const struct list_elem *l, const struct list_elem *r, void *aux);
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -74,7 +75,7 @@ sema_down (struct semaphore *sema)
     {
       // Insert the threads in priority order
       ASSERT(list_begin(&sema->waiters) != NULL);
-      list_insert_ordered(&sema->waiters, &thread_current ()->elem, &synch_high_func, NULL);
+      list_insert_ordered(&sema->waiters, &thread_current ()->elem, &thread_less_func, NULL);
       thread_block ();
     }
   sema->value--;
@@ -130,12 +131,14 @@ sema_up (struct semaphore *sema)
     thread_unblock (t);
    
 
+
   }
 
   // See if the current thread needs to yield to the unblocked thread
    if(t != NULL && t->priority > thread_current()->priority) {
     thread_yield(); // this is causing alarm clock problems.
   }
+
   intr_set_level(old_level);
 
 }
@@ -221,20 +224,36 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   struct thread* lock_holder = lock->holder;
-  struct thread* t = thread_current();
+  struct thread* t_cur = thread_current();
+  struct lock *cur_lock = lock;
+
+  //current thread wants the lock
+  t_cur->lock_desired = lock;
 
   // First acquisition of lock case
-  /*if(lock->holder == NULL) {
-    lock->priority = 
-  }*/
+  if(lock->holder == NULL) {
+    lock->priority = t_cur->priority;
+  }
 
-  // Transfer over the thread's priority to the lock's if it is larger
-  /*if(lock->priority < t->priority) {
-    lock->priority = t->priority;
-  }*/
+  while(lock_holder != NULL && t_cur->priority > lock_holder->priority){
+    thread_set_priority_donation(lock_holder, t_cur->priority, true);
+    if(t_cur->priority > cur_lock->priority){
+      cur_lock->priority = t_cur->priority;
+    }
+
+    if(lock_holder->lock_desired != NULL){
+      cur_lock = lock_holder->lock_desired;
+      lock_holder = cur_lock->holder;
+    }else{
+      break;
+    }
+  }
 
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+  lock->holder = thread_current();
+
+  lock->holder->lock_desired = (struct lock*) NULL;
+  list_insert_ordered(&(lock->holder->locks), &(lock->lockelem), lock_less_func, NULL);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -265,11 +284,25 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
+  struct list_elem *next;
+  struct lock *next_lock;
+
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  struct thread *t_cur = thread_current();
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+
+  list_remove(&(lock->lockelem));
+  if(list_empty(&(t_cur->locks))){
+    thread_set_priority_donation(t_cur, t_cur->original_priority, true);
+  }else {
+    list_sort(&(t_cur->locks), lock_less_func, NULL);
+    next = list_front(&(t_cur->locks));
+    next_lock = list_entry(next, struct lock, lockelem);
+    thread_set_priority_donation(t_cur, next_lock->priority, true);
+    }
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -423,4 +456,12 @@ static bool sema_less_func(const struct list_elem *l, const struct list_elem *r,
   lsema = list_entry(l, struct semaphore_elem, elem);
   rsema = list_entry(r, struct semaphore_elem, elem);
   return (lsema->semaphore.priority > rsema->semaphore.priority);
+}
+
+static bool lock_less_func(const struct list_elem *l, const struct list_elem *r, void *aux) {
+  struct lock *llock, *rlock;
+  ASSERT (l != NULL && r != NULL);
+  llock = list_entry(l, struct lock, lockelem);
+  rlock = list_entry(r, struct lock, lockelem);
+  return (llock->priority > rlock->priority);
 }

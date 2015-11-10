@@ -379,21 +379,7 @@ thread_set_priority (int new_priority)
 {
   //thread_current ()->priority = new_priority; 
   // give up cpu time if we are no longer the highest priority
-  struct thread *t = thread_current(); 
-  struct thread *next;
-//  if(!thread_mlfq)
-	t->priority = new_priority;
-
-  lock_acquire(&ready_list_lock); // make sure no thread changes priority while we are sorting the data structure 
-  list_sort(&ready_list, ready_high_func, NULL); // update the ready list and check if it is not the highest process
-	lock_release(&ready_list_lock);
-
-  // when we sort the next thread to run is at the top of the list
-	next = list_entry(list_begin(&ready_list), struct thread, elem); 
-	if(next->priority > t->priority){
-    //printf("Thread is yielding\n");
-	  thread_yield();
-  }
+ thread_set_priority_donation(thread_current(), new_priority, false);
         // else continue running until we are done with our quanta
  // }
 }
@@ -520,6 +506,8 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->original_priority = priority;
+  list_init(&t->locks);
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
@@ -709,4 +697,26 @@ struct thread *thread_sleep(int64_t sleep_until){
   ASSERT(!intr_context());
   t->sleep_time = sleep_until;
   list_push_back(&sleeping_threads_list, &t->sleeping_elem);
+}
+
+void thread_set_priority_donation(struct thread *t, int new_priority, bool donated){
+  struct thread *next;
+
+  if(donated == true){
+    t->priority = new_priority;
+  }else{
+    if(t->priority == t->original_priority){
+      t->priority = new_priority;
+      t->original_priority = new_priority;
+    }else{
+      t->priority = new_priority;
+    }
+  }
+
+  next = list_entry(list_begin(&ready_list), struct thread, elem); 
+  if(t == thread_current() && next->priority > new_priority){
+    thread_yield();
+  }else if(t->status == THREAD_READY){
+    list_sort(&ready_list, thread_less_func, NULL);
+  }
 }
