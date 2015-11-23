@@ -14,7 +14,7 @@
 #include "filesys/filesys.h"
 #include "vm/page.h"
 #include "vm/frame.h"
-
+#include "vm/swap.h"
 #include <debug.h>
 
 #define ARGS_MAX 3

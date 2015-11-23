@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "lib/kernel/hash.h"
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -74,6 +75,21 @@ typedef int tid_t;
    the `magic' member of the running thread's `struct thread' is
    set to THREAD_MAGIC.  Stack overflow will normally change this
    value, triggering the assertion. */
+struct file_desc {
+        int id;
+        struct list_elem elem;
+        struct file* file;
+};
+
+struct child_thread {
+        tid_t tid;
+        int exit_status;
+        bool exited;
+        bool waiting;
+        struct list_elem elem;
+};
+
+
 /* The `elem' member has a dual purpose.  It can be an element in
    the run queue (thread.c), or it can be an element in a
    semaphore wait list (synch.c).  It can be used these two ways
@@ -98,16 +114,30 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+     bool load;
 
-#ifdef USERPROG
+    struct semaphore sem;
+    struct semaphore sem_load;
+    struct semaphore sem_read;
+
+
+    /* Owned by userprog/process.c. */
+                tid_t parent_tid;
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-#endif
+    struct hash sup_pagedir;              /* Supplimental page directory*/
 
-    struct file* file;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    struct list file_descrips;
+    struct list child_threads;
+
+    struct child_process* cp;
+
+    struct file* file;    
+
   };
 
 /*Data structure for holding information about a waiting thread*/
