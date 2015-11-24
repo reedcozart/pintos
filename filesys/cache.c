@@ -46,7 +46,7 @@ void buffer_cache_init(void) {
  * cache and null otherwise. */
 struct cache_block * block_in_cache(struct inode *inode, block_sector_t sector_idx) {
     struct list_elem *e;
-    struct list_elem *block_elem
+    struct list_elem *block_elem;
     struct cache_block *c;
 
     lock_acquire(&cache_list_lock);
@@ -56,7 +56,7 @@ struct cache_block * block_in_cache(struct inode *inode, block_sector_t sector_i
     while (e != list_end(&cache_block_list) && e != NULL) {
         c = list_entry(e, struct cache_block, elem);
         if (c->inode == inode && c->sector_idx == sector_idx) {
-        	list_remove(c->elem);
+        	list_remove(&c->elem);
         	list_push_front(&cache_block_list, &c->elem);
             lock_release(&cache_list_lock);
             return c;
