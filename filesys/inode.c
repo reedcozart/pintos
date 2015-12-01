@@ -363,7 +363,7 @@ inode_create (block_sector_t sector, off_t length)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
-
+  int i;
   ASSERT (length >= 0);
 
   /* If this assertion fails, the inode structure is not exactly
@@ -376,6 +376,18 @@ inode_create (block_sector_t sector, off_t length)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = 0;
       disk_inode->magic = INODE_MAGIC;
+      for(i = 0; i<126; i++ ){
+        disk_inode->block_list[i] = -1;
+      }
+      success = grow(disk_inode, length);
+      if(success){
+        lock_acquire(filesys_lock_list + sector);
+        block_write(fs_device, sector, disk_inode);
+        lock_release(filesys_lock_list + sector);
+      }
+      free(disk_inode);
+      return success;
+      /*
       if (free_map_allocate (sectors, &disk_inode->start)) 
         {
           block_write (fs_device, sector, disk_inode);
@@ -391,7 +403,8 @@ inode_create (block_sector_t sector, off_t length)
         } 
       free (disk_inode);
     }
-  return success;
+  return success;*/
+  }
 }
 
 /* Reads an inode from SECTOR
@@ -466,8 +479,7 @@ inode_close (struct inode *inode)
       if (inode->removed) 
         {
           free_map_release (inode->sector, 1);
-          free_map_release (inode->data.start,
-                            bytes_to_sectors (inode->data.length)); 
+          shrink(&(inode->data), 0);
         }
 
       free (inode); 
