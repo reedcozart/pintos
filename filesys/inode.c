@@ -47,8 +47,8 @@ struct inode
     struct inode_disk data;             /* Inode content. */
   };
 
-void shrink(struct inode_disk *disk_inode, off_t length);
-bool grow(struct inode_disk *disk_inode, off_t length);
+void shrink(struct inode_disk *, off_t length);
+bool grow(struct inode_disk *, off_t length);
 
 
 
@@ -179,6 +179,7 @@ void shrink(struct inode_disk *disk_inode, off_t length) {
 
 // Grows the file to a given length.
 bool grow(struct inode_disk *disk_inode, off_t length) {
+  //printf("GROWING\n");
   size_t sectors = bytes_to_sectors(length);
   size_t cur_sectors = bytes_to_sectors(disk_inode->length);
   struct i_inode_disk *indirect = NULL;
@@ -281,6 +282,7 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
         return false;
       }
       if (free_map_allocate(1, &dbl_indirect_sector)) {
+        //printf("free_map_allocate success\n");
         for (i = 0; i < 128; i++) {
           dbl_indirect->block_list[i] = -1;
         }
@@ -293,7 +295,8 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
     else {
       block_read(fs_device, disk_inode->block_list[125], dbl_indirect);
     }
-    for (i = (cur - 252) / 128; i < (sectors - 252) / 128 + 1 && i < 128; i++) {
+    //printf("SECTORS: %d\n", (sectors - 252) / 128 + 1);
+    for (i = (cur - 252) / 128; (i < (sectors - 252) / 128 + 1) && i < 128; i++) {
       if (dbl_indirect->block_list[i] == -1) {
         indirect = calloc(1, sizeof *indirect);
         if (indirect == NULL) {
@@ -301,8 +304,9 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
           return false;
         }
         if (free_map_allocate(1, &indirect_sector)) {
-          for (i = 0; i < 128; i++) {
-            indirect->block_list[i] = -1;
+          int k;
+          for (k = 0;  k < 256; k++) {
+            indirect->block_list[k] = -1;
           }
         }
         else {
@@ -329,13 +333,19 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
       if (dbl_indirect->block_list[i] == -1) {
         dbl_indirect->block_list[i] = indirect_sector;
         lock_acquire(&filesys_lock);
+        ////printf("other write begins\n");
         block_write(fs_device, dbl_indirect->block_list[i], indirect);
+        ////printf("other write ends\n");
         lock_release(&filesys_lock);
         free(indirect);
       }
       else {
         lock_acquire(&filesys_lock);
+        //        //printf("write begins\n");
+                //printf("%d\n", i);
         block_write(fs_device, dbl_indirect->block_list[i], indirect);
+        //        //printf("write ends\n");
+
         lock_release(&filesys_lock);
       }
     }
@@ -352,6 +362,8 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
       lock_release(&filesys_lock);
     }
   }
+
+  //printf("GROWING ENDS\n");
   if (growth <= 0) {
     disk_inode->length = length;
     return true;
@@ -617,6 +629,7 @@ off_t inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t
         size -= chunk_size;
         offset += chunk_size;
         bytes_written += chunk_size;
+
     }
 
     return bytes_written;
