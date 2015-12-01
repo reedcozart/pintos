@@ -7,9 +7,12 @@
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
 #include "filesys/cache.h"
+#include "threads/synch.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
+
+static struct lock filesys_lock;
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
@@ -44,8 +47,8 @@ struct inode
     struct inode_disk data;             /* Inode content. */
   };
 
-void inode_shrink(struct inode_disk *, off_t len);
-void inode_grow(struct inode_disk *, off_t len);
+void shrink(struct inode_disk *disk_inode, off_t length);
+bool grow(struct inode_disk *disk_inode, off_t length);
 
 
 
@@ -56,6 +59,7 @@ void inode_grow(struct inode_disk *, off_t len);
 static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
+  struct i_inode_disk *index = NULL;
   ASSERT (inode != NULL);
   if (pos < inode->data.length){
     int sector = pos / BLOCK_SECTOR_SIZE;
@@ -74,7 +78,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
       index = calloc(1, sizeof *index);
       index = cache_read(inode, inode->data.block_list[125]);
       block_sector_t next_block = index->block_list[(sector - 252)/128];
-      index = cache_read(inode, next);
+      index = cache_read(inode, next_block);
       block_sector_t return_val = index->block_list[(sector-252)%128];
       free(index);
       return return_val;
@@ -96,6 +100,7 @@ void
 inode_init (void) 
 {
   list_init (&open_inodes);
+  lock_init (&filesys_lock);
 }
 // Removes and deallocs any blocks within the inode.
 void shrink(struct inode_disk *disk_inode, off_t length) {
@@ -123,9 +128,9 @@ void shrink(struct inode_disk *disk_inode, off_t length) {
           dbl_indirect->block_list[i] = -1;
         }
         else {
-          lock_acquire(filesys_lock_list + dbl_indirect->block_list[i]);
+          lock_acquire(&filesys_lock);
           block_write(fs_device, dbl_indirect->block_list[i], indirect);
-          lock_release(filesys_lock_list + dbl_indirect->block_list[i]);
+          lock_release(&filesys_lock);
         }
       }
     }
@@ -134,9 +139,9 @@ void shrink(struct inode_disk *disk_inode, off_t length) {
       disk_inode->block_list[125] = -1;
     }
     else {
-      lock_acquire(filesys_lock_list + disk_inode->block_list[125]);
+      lock_acquire(&filesys_lock);
       block_write(fs_device, disk_inode->block_list[125], dbl_indirect);
-      lock_release(filesys_lock_list + disk_inode->block_list[125]);
+      lock_release(&filesys_lock);
     }
   }
   
@@ -154,9 +159,9 @@ void shrink(struct inode_disk *disk_inode, off_t length) {
       disk_inode->block_list[124] = -1;
     }
     else {
-      lock_acquire(filesys_lock_list + disk_inode->block_list[124]);
+      lock_acquire(&filesys_lock);
       block_write(fs_device, disk_inode->block_list[124], indirect);
-      lock_release(filesys_lock_list + disk_inode->block_list[124]);
+      lock_release(&filesys_lock);
     }
   }
   
@@ -196,9 +201,9 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
   if (cur < 124) {
     for (i = cur; i < sectors && i < 124; i++) {
       if (free_map_allocate(1, &file_sector)) {
-        lock_acquire(filesys_lock_list + file_sector);
+        lock_acquire(&filesys_lock);
         block_write(fs_device, file_sector, zeros);
-        lock_release(filesys_lock_list + file_sector);
+        lock_release(&filesys_lock);
         disk_inode->block_list[i] = file_sector;
         growth--;
       }
@@ -237,9 +242,9 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
     }
     for (i = cur; i < (sectors - 124) && i < 128; i++) {
       if (free_map_allocate(1, &file_sector)) {
-        lock_acquire(filesys_lock_list + file_sector);
+        lock_acquire(&filesys_lock);
         block_write(fs_device, file_sector, zeros);
-        lock_release(filesys_lock_list + file_sector);
+        lock_release(&filesys_lock);
         indirect->block_list[i] = file_sector;
         growth--;
       }
@@ -250,15 +255,15 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
     }
     if (disk_inode->block_list[124] == -1) {
       disk_inode->block_list[124] = indirect_sector;
-      lock_acquire(filesys_lock_list + disk_inode->block_list[124]);
+      lock_acquire(&filesys_lock);
       block_write(fs_device, disk_inode->block_list[124], indirect);
-      lock_release(filesys_lock_list + disk_inode->block_list[124]);
+      lock_release(&filesys_lock);
       free(indirect);
     }
     else {
-      lock_acquire(filesys_lock_list + disk_inode->block_list[124]);
+      lock_acquire(&filesys_lock);
       block_write(fs_device, disk_inode->block_list[124], indirect);
-      lock_release(filesys_lock_list + disk_inode->block_list[124]);
+      lock_release(&filesys_lock);
     }
     cur = 252;
   }
@@ -310,9 +315,9 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
       }
       for (j = cur - 252 - (i * 128); j < sectors - 252 - (i * 128) + 1 && j < 128; j++) {
         if (free_map_allocate(1, &file_sector)) {
-          lock_acquire(filesys_lock_list + file_sector);
+          lock_acquire(&filesys_lock);
           block_write(fs_device, file_sector, zeros);
-          lock_release(filesys_lock_list + file_sector);
+          lock_release(&filesys_lock);
           indirect->block_list[i] = file_sector;
           growth--;
         }
@@ -323,28 +328,28 @@ bool grow(struct inode_disk *disk_inode, off_t length) {
       }
       if (dbl_indirect->block_list[i] == -1) {
         dbl_indirect->block_list[i] = indirect_sector;
-        lock_acquire(filesys_lock_list + dbl_indirect->block_list[i]);
+        lock_acquire(&filesys_lock);
         block_write(fs_device, dbl_indirect->block_list[i], indirect);
-        lock_release(filesys_lock_list + dbl_indirect->block_list[i]);
+        lock_release(&filesys_lock);
         free(indirect);
       }
       else {
-        lock_acquire(filesys_lock_list + dbl_indirect->block_list[i]);
+        lock_acquire(&filesys_lock);
         block_write(fs_device, dbl_indirect->block_list[i], indirect);
-        lock_release(filesys_lock_list + dbl_indirect->block_list[i]);
+        lock_release(&filesys_lock);
       }
     }
     if (disk_inode->block_list[125] == -1) {
       disk_inode->block_list[125] = dbl_indirect_sector;
-      lock_acquire(filesys_lock_list + disk_inode->block_list[125]);
+      lock_acquire(&filesys_lock);
       block_write(fs_device, disk_inode->block_list[125], dbl_indirect);
-      lock_release(filesys_lock_list + disk_inode->block_list[125]);
+      lock_release(&filesys_lock);
       free(dbl_indirect);
     }
     else {
-      lock_acquire(filesys_lock_list + disk_inode->block_list[125]);
+      lock_acquire(&filesys_lock);
       block_write(fs_device, disk_inode->block_list[125], dbl_indirect);
-      lock_release(filesys_lock_list + disk_inode->block_list[125]);
+      lock_release(&filesys_lock);
     }
   }
   if (growth <= 0) {
@@ -381,9 +386,9 @@ inode_create (block_sector_t sector, off_t length)
       }
       success = grow(disk_inode, length);
       if(success){
-        lock_acquire(filesys_lock_list + sector);
+        lock_acquire(&filesys_lock);
         block_write(fs_device, sector, disk_inode);
-        lock_release(filesys_lock_list + sector);
+        lock_release(&filesys_lock);
       }
       free(disk_inode);
       return success;
