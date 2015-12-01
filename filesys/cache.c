@@ -111,6 +111,43 @@ uint8_t * cache_read(struct inode *inode, block_sector_t sector_idx) {
     return c->block;
 }
 
+uint8_t * cache_write(struct inode *inode, block_sector_t sector_idx) {
+    struct cache_block *c;
+    uint8_t *buffer = NULL;
+
+    /* Check if the block is in the cache. */
+    c = block_in_cache(inode, sector_idx);
+    /* If it isn't, find the corresponding data in the filesystem
+     * and allocate a new block for it and put it into the buffer, 
+     * evicting an old block if necessary. */
+    if (c == NULL) {
+        buffer = malloc(BLOCK_SECTOR_SIZE);
+        if(buffer == NULL) { return NULL; }
+        /* Reads the data from the disk to the buffer.
+         * Writes happen later. */
+        block_read(fs_device, sector_idx, buffer);
+        c = malloc(sizeof(struct cache_block));
+        if(c == NULL) { return NULL; }
+        c->inode = inode;
+        c->sector_idx = sector_idx;
+        c->block = buffer;
+        c->count = 0;
+        c->accessed = true;
+        c->dirty = true;
+        while (list_size(&cache_block_list) >= CACHE_SIZE) {
+            evict_block();
+        }
+        lock_acquire(&cache_list_lock);
+        list_push_front(&cache_block_list, &c->elem);
+        lock_release(&cache_list_lock);
+    }
+    else {
+        c->accessed = true;
+        c->dirty = true;
+    }
+    return c->block;
+}
+
 /* Writes the data in a buffer to disk. This is called on two 
  * occasions:
  * 1. When a block is evicted (in evict_block()).
