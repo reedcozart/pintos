@@ -173,10 +173,9 @@ void evict_block(void) {
     /* removes the last element of the list, as the last one 
     is the least recently used*/
     ASSERT(list_size(&cache_block_list) > 0);
-    remove_elem = list_end(&cache_block_list);
+    remove_elem = list_pop_back(&cache_block_list);
     evict = list_entry(remove_elem, struct cache_block, elem);
     ASSERT(evict != NULL);
-    list_remove(remove_elem);
     if(evict->dirty){
     	cache_write_to_disk(evict);
     }
